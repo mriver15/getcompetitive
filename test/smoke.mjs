@@ -1,0 +1,110 @@
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+
+const client = new Client({ name: 'smoke', version: '0.0.0' });
+const transport = new StdioClientTransport({
+  command: 'node',
+  args: ['dist/index.js'],
+  stderr: 'pipe',
+});
+transport.stderr?.on('data', (d) => process.stderr.write(`[server] ${d}`));
+
+await client.connect(transport);
+
+const listed = await client.listTools();
+console.log(`TOOLS (${listed.tools.length}): ${listed.tools.map((t) => t.name).join(', ')}\n`);
+
+const calls = [
+  ['get_pokemon', { species: 'Garchomp' }],
+  ['get_pokemon', { species: 'Ogerpon-Wellspring' }],
+  ['list_forms', { species: 'Rotom' }],
+  ['list_forms', { species: 'Gholdengo' }],
+  ['search', { query: 'ogerpon' }],
+  ['search', { query: 'sword', kind: 'move', limit: 10 }],
+  ['get_move', { move: 'Earthquake' }],
+  ['get_move', { move: 'Make It Rain' }],
+  ['get_item', { item: 'Choice Band' }],
+  ['get_ability', { ability: 'Intimidate' }],
+  ['get_nature', { nature: 'Jolly' }],
+  ['get_learnset', { species: 'Garchomp' }],
+  ['get_type', { type: 'Steel' }],
+  ['type_chart', { attacker: 'Fire', defender: 'Grass' }],
+  ['type_chart', { attacker: 'Ice' }],
+  ['type_chart', { defender: 'Garchomp' }],
+  ['type_chart', { attacker: 'Ice', defender: 'Garchomp' }],
+  ['calculate_stats', { species: 'Garchomp', level: 50, nature: 'Jolly', evs: { atk: 252, spe: 252 } }],
+  ['calculate_damage', {
+    attacker: { species: 'Garchomp', level: 50, nature: 'Jolly', evs: { atk: 252, spe: 252 }, item: 'Choice Band' },
+    defender: { species: 'Corviknight', level: 50, nature: 'Impish', evs: { hp: 252, def: 252 } },
+    move: 'Dragon Claw',
+  }],
+  ['calculate_damage', {
+    attacker: { species: 'Flutter Mane', level: 50, nature: 'Timid', evs: { spa: 252, spe: 252 }, item: 'Booster Energy' },
+    defender: { species: 'Kingambit', level: 50, nature: 'Adamant', evs: { hp: 252, atk: 252 } },
+    move: 'Moonblast',
+    field: { weather: 'Sun' },
+  }],
+  ['speed_tiers', { tier: 'OU', level: 50, query: 'dragapult' }],
+  ['list_tiers', { league: 'singles' }],
+  ['list_archetypes', {}],
+  ['get_archetype', { name: 'rain' }],
+  ['list_regulations', {}],
+  ['get_regulation', { regulation: 'M-C' }],
+  ['check_legality', {
+    regulation: 'm-c',
+    team: [
+      { species: 'Garchomp', item: 'Choice Band' },
+      { species: 'Gholdengo', item: 'Leftovers' },
+      { species: 'Dragonite', item: 'Assault Vest' },
+      { species: 'Tyranitar', item: 'Sitrus Berry' },
+      { species: 'Incineroar', item: 'Rocky Helmet' },
+      { species: 'Dragapult', item: 'Choice Scarf' },
+    ],
+  }],
+  ['check_legality', {
+    regulation: 'm-c',
+    team: [
+      { species: 'Flutter Mane', item: 'Choice Specs' },
+      { species: 'Rotom', item: 'Leftovers' },
+      { species: 'Rotom-Wash', item: 'Leftovers' },
+      { species: 'Garchomp', item: 'Choice Band' },
+    ],
+  }],
+  ['analyze_team', {
+    team: [
+      { species: 'Garchomp', moves: ['Earthquake', 'Dragon Claw', 'Rock Slide', 'Swords Dance'] },
+      { species: 'Dragonite', teraType: 'Normal', moves: ['Extreme Speed', 'Dragon Dance', 'Earthquake', 'Outrage'] },
+      { species: 'Salamence', moves: ['Dragon Dance', 'Outrage', 'Earthquake', 'Dual Wingbeat'] },
+      { species: 'Gholdengo', moves: ['Make It Rain', 'Shadow Ball', 'Nasty Plot', 'Recover'] },
+      { species: 'Pelipper', moves: ['Surf', 'Hurricane', 'U-turn', 'Roost'] },
+      { species: 'Incineroar', moves: ['Flare Blitz', 'Knock Off', 'Parting Shot', 'Fake Out'] },
+    ],
+    regulation: 'm-c',
+  }],
+];
+
+let failed = 0;
+for (const [name, args] of calls) {
+  const res = await client.callTool({ name, arguments: args });
+  const text = (res.content ?? []).filter((c) => c.type === 'text').map((c) => c.text).join('');
+  if (res.isError) failed++;
+  console.log(`=== ${name} ${JSON.stringify(args).slice(0, 90)}${res.isError ? '  [ERROR]' : ''} ===`);
+  console.log(text.slice(0, 520).replace(/\n+/g, ' '));
+  console.log('');
+}
+
+// Error-path checks
+for (const [name, args] of [
+  ['get_pokemon', { species: 'NotAMon' }],
+  ['calculate_stats', { species: 'Garchomp', level: 50, evs: { atk: 999 } }],
+  ['type_chart', { attacker: 'Fire', defender: 'Bogus' }],
+]) {
+  const res = await client.callTool({ name, arguments: args });
+  const isErr = !!res.isError;
+  console.log(`=== ${name} ${JSON.stringify(args)} => isError=${isErr} ===`);
+  if (!isErr) failed++;
+}
+
+console.log(failed === 0 ? '\nALL PASS' : `\n${failed} FAILURES`);
+await client.close();
+process.exit(failed === 0 ? 0 : 1);
