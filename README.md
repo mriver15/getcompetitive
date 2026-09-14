@@ -1,17 +1,24 @@
 # getcompetitive
 
-An MCP server for competitive Pokemon team building, decision making, and data
-lookup. It exposes the full Pokemon Showdown competitive dataset (species, stats,
-alternate forms, types, items, abilities, moves, learnsets, tiers), battle
-mechanics (stat calculation, full damage calculation, speed tiers), curated
-team-building archetypes, and the official **Pokémon Champions / VGC Regulation
-Sets** (seasonal legal rosters + team legality checking).
+[![npm version](https://img.shields.io/npm/v/getcompetitive)](https://www.npmjs.com/package/getcompetitive)
+[![CI](https://github.com/mriver15/getcompetitive/actions/workflows/ci.yml/badge.svg)](https://github.com/mriver15/getcompetitive/actions/workflows/ci.yml)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![node](https://img.shields.io/badge/node-%3E%3D20-green.svg)](#install)
+
+A [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server that gives
+AI agents everything needed to build, analyze, and validate competitive Pokémon
+teams — including **Pokémon Champions / VGC** regulations.
+
+## What it provides
+
+- **20 tools** across four domains: data, team building, battle mechanics, and official regulation sets
+- Full **Pokémon Showdown** competitive dataset — species, alternate forms, stats, moves, items, abilities, natures, learnsets, types, tiers
+- **Battle math** from Smogon's calculator — stat calculation and full damage calculation (weather, terrain, boosts, items, Tera)
+- **Official Regulation Sets** (M-A → M-C) with seasonal legal rosters and team legality checking
+- Generation-aware data (1–9, default 9)
 
 Built on [`@pkmn/dex`](https://github.com/pkmn/EPOKe) (Showdown data) and
-[`@smogon/calc`](https://github.com/smogon/calc) (battle math). Generation-aware:
-every data tool accepts a `generation` parameter (1–9, default 9). Regulation
-data is sourced from Bulbapedia (mirrors the official Play! Pokémon rules) and
-regenerated with `node scripts/extract-regs.mjs`.
+[`@smogon/calc`](https://github.com/smogon/calc) (battle math).
 
 ## Tools
 
@@ -36,7 +43,7 @@ regenerated with `node scripts/extract-regs.mjs`.
 | `get_archetype` | Full detail: description, roles, members, strengths, weaknesses, counters, tips |
 | `list_tiers` | All legal Pokemon grouped by competitive tier (singles/doubles) |
 | `speed_tiers` | Speed of every Pokemon in a tier at common investment levels, sorted |
-| `analyze_team` | Team synergy: stacked defensive weaknesses, offensive coverage gaps, speed placement vs a regulation roster |
+| `analyze_team` | Team synergy: stacked defensive weaknesses, offensive coverage gaps, speed placement |
 
 ### Regulations (Pokémon Champions / VGC)
 | Tool | Purpose |
@@ -45,22 +52,30 @@ regenerated with `node scripts/extract-regs.mjs`.
 | `get_regulation` | Full set rules: battle rules, clauses, Mega rules, and the complete legal roster |
 | `check_legality` | Validate a team against a set: illegal species, Species/Item Clause, team size, Mega eligibility |
 
-Note the two different taxonomies: `list_tiers`/`speed_tiers` use **Smogon fan tiers**
-(OU/UU/Uber — a community laddering system), while the Regulation tools use the
-**official Pokémon Champions / VGC Regulation Sets** (seasonal legal rosters).
-
 ### Battle mechanics
 | Tool | Purpose |
 | --- | --- |
 | `calculate_stats` | Final 6 stats at a level with EVs/IVs/nature (in-game formula) |
-| `calculate_damage` | Full Smogon damage calc (sets, item, ability, boosts, weather, terrain, hazards) |
+| `calculate_damage` | Full damage calc (sets, item, ability, boosts, weather, terrain, hazards) |
 
-## Install & run
+> **Two taxonomies.** `list_tiers` / `speed_tiers` use **Smogon fan tiers**
+> (OU/UU/Uber — a community laddering system). The Regulation tools use the
+> **official Pokémon Champions / VGC Regulation Sets** (seasonal legal rosters).
+
+## Install
 
 ```bash
+npm install -g getcompetitive   # or: npx getcompetitive
+```
+
+Or build from source:
+
+```bash
+git clone https://github.com/mriver15/getcompetitive.git
+cd getcompetitive
 npm install
 npm run build
-npm start          # starts the MCP server on stdio
+npm start                       # starts the MCP server on stdio
 ```
 
 ## Configure an MCP client
@@ -69,8 +84,8 @@ npm start          # starts the MCP server on stdio
 {
   "mcpServers": {
     "getcompetitive": {
-      "command": "node",
-      "args": ["/absolute/path/to/getcompetitive/dist/index.js"]
+      "command": "npx",
+      "args": ["getcompetitive"]
     }
   }
 }
@@ -91,13 +106,22 @@ npm test   # builds and drives every tool over real MCP stdio
 - `type_chart` `{ "attacker": "Ice", "defender": "Garchomp" }` → 4x super effective
 - `calculate_stats` `{ "species": "Garchomp", "level": 50, "nature": "Jolly", "evs": { "atk": 252, "spe": 252 } }`
 - `calculate_damage` `{ "attacker": { "species": "Garchomp", "level": 50, "nature": "Jolly", "evs": { "atk": 252, "spe": 252 }, "item": "Choice Band" }, "defender": { "species": "Corviknight", "level": 50, "nature": "Impish", "evs": { "hp": 252, "def": 252 } }, "move": "Dragon Claw" }`
-- `get_archetype` `{ "name": "rain" }`
-- `speed_tiers` `{ "tier": "OU", "level": 50 }`
-- `list_regulations` `{}`
-- `get_regulation` `{ "regulation": "M-C" }`
-- `check_legality` `{ "regulation": "m-c", "team": [ { "species": "Garchomp", "item": "Choice Band" }, { "species": "Gholdengo", "item": "Leftovers" } ] }`
-- `analyze_team` `{ "team": [ { "species": "Garchomp", "moves": ["Earthquake", "Dragon Claw", "Rock Slide"] }, { "species": "Gholdengo", "moves": ["Make It Rain", "Shadow Ball"] } ], "regulation": "m-c" }`
+- `check_legality` `{ "regulation": "m-c", "team": [ { "species": "Garchomp", "item": "Choice Band" } ] }`
+- `analyze_team` `{ "team": [ { "species": "Garchomp", "moves": ["Earthquake", "Dragon Claw", "Rock Slide"] } ], "regulation": "m-c" }`
+
+## Data freshness
+
+The Showdown dataset and battle math track `@pkmn/dex` / `@smogon/calc`. Official
+**Regulation Sets change seasonally**; the legal rosters are regenerated with
+`node scripts/extract-regs.mjs` (sourced from Bulbapedia, which mirrors the
+official Play! Pokémon rules). See [CONTRIBUTING](CONTRIBUTING.md).
+
+## Contributing
+
+Pull requests welcome. See [CONTRIBUTING](CONTRIBUTING.md) for setup and
+conventions, and [CODE_OF_CONDUCT](CODE_OF_CONDUCT.md) for community standards.
 
 ## License
 
-MIT
+[MIT](LICENSE). Data is sourced from the Pokémon Showdown ecosystem and
+Bulbapedia; Pokémon is © Nintendo / Game Freak.

@@ -1,0 +1,26 @@
+name: Feature request
+description: Suggest an enhancement or new tool
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What competitive team-building problem does this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: The tool or feature, with example inputs and expected outputs.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives
+      description: Anything you've already considered?
+    validations:
+      required: false

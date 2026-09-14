@@ -1,0 +1,35 @@
+name: Bug report
+description: Report a bug or incorrect data
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Describe the bug, including the tool and inputs.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should have happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: The tool call (name + arguments) that triggers it.
+      render: json
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The getcompetitive version (e.g. 0.1.0) or commit SHA.
+      placeholder: "0.1.0"
+    validations:
+      required: false
