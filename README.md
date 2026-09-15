@@ -11,7 +11,7 @@ teams — including **Pokémon Champions / VGC** regulations.
 
 ## What it provides
 
-- **22 tools** across four domains: data, team building, battle mechanics, and official regulation sets
+- **23 tools** across four domains: data, team building, battle mechanics, and official regulation sets
 - Full **Pokémon Showdown** competitive dataset — species, alternate forms, stats, moves, items, abilities, natures, learnsets, types, tiers
 - **Battle math** from Smogon's calculator — stat calculation and full damage calculation (weather, terrain, boosts, items, Tera)
 - **Official Regulation Sets** (M-A → M-C) with seasonal legal rosters and team legality checking
@@ -43,7 +43,7 @@ Built on [`@pkmn/dex`](https://github.com/pkmn/EPOKe) (Showdown data) and
 | `get_archetype` | Full detail: description, roles, members, strengths, weaknesses, counters, tips |
 | `list_tiers` | All legal Pokemon grouped by competitive tier (singles/doubles) |
 | `speed_tiers` | Speed of every Pokemon in a tier at common investment levels, sorted |
-| `analyze_team` | Team synergy: stacked defensive weaknesses, offensive coverage gaps, speed placement |
+| `analyze_team` | Team synergy: stacked defensive weaknesses, offensive coverage gaps, speed placement, and a heuristic 0-100 score |
 
 ### Regulations (Pokémon Champions / VGC)
 | Tool | Purpose |
@@ -59,6 +59,7 @@ Built on [`@pkmn/dex`](https://github.com/pkmn/EPOKe) (Showdown data) and
 | `calculate_damage` | Full damage calc (sets, item, ability, boosts, weather, terrain, hazards) |
 | `calc_matchups` | Batch damage: one attacker vs many defenders — best move, damage range, KO chance, who moves first |
 | `speed_check` | Final Speed (nature/EV/IV/boost/Scarf) vs a regulation roster's invested/uninvested speeds |
+| `optimize_evs` | EV spread solver: min EVs to survive / outspeed / guarantee a KO, then maximize a stat |
 
 > **Two taxonomies.** `list_tiers` / `speed_tiers` use **Smogon fan tiers**
 > (OU/UU/Uber — a community laddering system). The Regulation tools use the

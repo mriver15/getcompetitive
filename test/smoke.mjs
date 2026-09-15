@@ -90,6 +90,12 @@ const calls = [
     ],
   }],
   ['speed_check', { species: 'Garchomp', level: 50, nature: 'Jolly', evs: { spe: 252 }, regulation: 'm-c' }],
+  ['optimize_evs', {
+    species: 'Garchomp', level: 50, nature: 'Jolly', item: 'Choice Band',
+    kill: { target: { species: 'Incineroar', level: 50, nature: 'Careful', evs: { hp: 252, spd: 252 } }, move: 'Earthquake' },
+    outspeed: { speed: 100 },
+    maximize: 'spe',
+  }],
   ['check_legality', {
     regulation: 'm-c',
     team: [

@@ -133,6 +133,20 @@ export function registerAnalyzeTools(server: McpServer) {
           fasterThreats.sort((a, b) => b.baseSpe - a.baseSpe);
         }
 
+        // Transparent heuristic score — a quick signal, not a metagame rating.
+        const coverageScore = Math.round(((TYPES18.length - uncovered.length) / TYPES18.length) * 100);
+        let defensiveScore = 100;
+        for (const t of TYPES18) {
+          const w = defensive[t].weak;
+          if (w >= 4) defensiveScore -= 40;
+          else if (w >= 3) defensiveScore -= 25;
+          else if (w >= 2) defensiveScore -= 12;
+        }
+        defensiveScore = Math.max(0, defensiveScore);
+        const speedScore = set ? Math.max(0, 100 - fasterThreats.length * 2) : undefined;
+        const parts = [defensiveScore, coverageScore, ...(speedScore !== undefined ? [speedScore] : [])];
+        const overall = Math.round(parts.reduce((a, b) => a + b, 0) / parts.length);
+
         return ok({
           team: members.map((m) => ({
             species: m.species,
@@ -159,6 +173,13 @@ export function registerAnalyzeTools(server: McpServer) {
                   note: 'Threats are base-speed comparisons; EVs, natures, and Choice Scarf shift real speed tiers.',
                 }
               : {}),
+          },
+          score: {
+            overall,
+            defensive: defensiveScore,
+            coverage: coverageScore,
+            ...(speedScore !== undefined ? { speed: speedScore } : {}),
+            note: 'Heuristic 0-100: defensive = penalty for stacked weaknesses; coverage = % of 18 types hit super-effectively; speed = penalty for faster legal threats. Not a metagame rating.',
           },
           ...(unknownMoves.length ? { unknownMoves: [...new Set(unknownMoves)] } : {}),
         });

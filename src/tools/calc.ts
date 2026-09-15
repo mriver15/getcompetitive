@@ -4,7 +4,7 @@
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Move as CalcMove, calculate } from '@smogon/calc';
-import { normalizeGen, getDex, statTable, damageResult, finalStat, buildPokemon, buildField, getCalcGen, STATS } from '../dex.js';
+import { normalizeGen, getDex, statTable, damageResult, finalStat, buildPokemon, buildField, getCalcGen, STATS, type SetInput } from '../dex.js';
 import { getRegulationSet } from '../regulations.js';
 import { ok, wrap, requireExists } from '../result.js';
 
@@ -429,6 +429,185 @@ export function registerCalcTools(server: McpServer) {
           finalSpeed: speed,
           modifiers,
           comparison,
+        });
+      },
+    ),
+  );
+
+  server.registerTool(
+    'optimize_evs',
+    {
+      description:
+        'Find an EV spread for a Pokemon that satisfies up to three goals: survive a specific attack (minimize HP+Def/SpD EVs to always live), outspeed a target (minimize Speed EVs), and guarantee a KO (minimize Atk/SpA EVs). Leftover EVs go into the maximize stat. Returns the recommended spread plus verification damage/speed numbers. Set level 50 for VGC.',
+      inputSchema: {
+        species: z.string(),
+        level: z.number().int().min(1).max(100).default(50),
+        nature: z.string().optional(),
+        ivs: statMap,
+        item: z.string().optional(),
+        ability: z.string().optional(),
+        survive: z.object({ attacker: setSchema, move: z.string() }).optional(),
+        outspeed: z
+          .object({ target: setSchema.optional(), speed: z.number().int().min(1).optional() })
+          .optional(),
+        kill: z.object({ target: setSchema, move: z.string(), hits: z.number().int().min(1).max(4).default(1) }).optional(),
+        maximize: z.enum(['atk', 'spa', 'spe', 'hp', 'def', 'spd']).default('spe'),
+        field: z
+          .object({
+            gameType: z.enum(['Singles', 'Doubles']).optional(),
+            weather: z.string().optional(),
+            terrain: z.string().optional(),
+          })
+          .optional(),
+        generation: genSchema,
+      },
+    },
+    wrap(
+      async (args: {
+        species: string;
+        level: number;
+        nature?: string;
+        ivs?: Record<string, number>;
+        item?: string;
+        ability?: string;
+        survive?: { attacker: SetInput; move: string };
+        outspeed?: { target?: SetInput; speed?: number };
+        kill?: { target: SetInput; move: string; hits: number };
+        maximize: 'atk' | 'spa' | 'spe' | 'hp' | 'def' | 'spd';
+        field?: { gameType?: 'Singles' | 'Doubles'; weather?: string; terrain?: string };
+        generation: number;
+      }) => {
+        const gen = normalizeGen(args.generation);
+        const dex = getDex(gen);
+        const sp = dex.species.get(args.species);
+        requireExists(sp, 'Pokemon species', args.species);
+        const nature = args.nature ?? 'Serious';
+        requireExists(dex.natures.get(nature), 'nature', nature);
+
+        if (!args.survive && !args.outspeed && !args.kill) {
+          throw new Error('Provide at least one goal: survive, outspeed, or kill.');
+        }
+
+        const ivs: Record<string, number> = {};
+        for (const st of STATS) ivs[st] = args.ivs?.[st] ?? 31;
+
+        const genCalc = getCalcGen(gen);
+        const field = buildField(args.field ?? {});
+        const base: SetInput = {
+          species: args.species,
+          level: args.level,
+          nature,
+          ivs,
+          item: args.item,
+          ability: args.ability,
+        };
+        const build = (evs: Record<string, number>) => buildPokemon(gen, { ...base, evs });
+
+        const required: Record<string, number> = { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 };
+        const verification: string[] = [];
+
+        if (args.survive) {
+          const mv = dex.moves.get(args.survive.move);
+          requireExists(mv, 'move', args.survive.move);
+          const atk = buildPokemon(gen, args.survive.attacker);
+          const calcMv = new CalcMove(genCalc, args.survive.move);
+          const defStat = mv.category === 'Special' ? 'spd' : 'def';
+          let best: { total: number; hp: number; d: number } | null = null;
+          let range: [number, number] = [0, 0];
+          let hp0 = 0;
+          for (let hp = 0; hp <= 252; hp += 4) {
+            for (let d = 0; d <= 252; d += 4) {
+              const defender = build({ hp, [defStat]: d });
+              const res = calculate(genCalc, atk, defender, calcMv, field);
+              const r = res.range();
+              if (r[1] < defender.maxHP()) {
+                if (best === null || hp + d < best.total) {
+                  best = { total: hp + d, hp, d };
+                  range = r;
+                  hp0 = defender.maxHP();
+                }
+                break;
+              }
+            }
+          }
+          if (best === null) {
+            throw new Error(`Cannot survive ${args.survive.attacker.species} ${args.survive.move} even with 252 HP / 252 ${defStat.toUpperCase()}.`);
+          }
+          required.hp = Math.max(required.hp, best.hp);
+          required[defStat] = Math.max(required[defStat], best.d);
+          verification.push(
+            `survive: ${args.survive.attacker.species} ${args.survive.move} -> ${range[0]}-${range[1]} vs ${hp0} HP (max ${Math.round((range[1] / hp0) * 100)}%)`,
+          );
+        }
+
+        if (args.outspeed) {
+          let targetSpeed: number;
+          if (args.outspeed.target) {
+            requireExists(dex.species.get(args.outspeed.target.species), 'Pokemon species', args.outspeed.target.species);
+            targetSpeed = buildPokemon(gen, args.outspeed.target).stats.spe;
+          } else if (args.outspeed.speed) {
+            targetSpeed = args.outspeed.speed;
+          } else {
+            throw new Error('outspeed requires `target` or `speed`.');
+          }
+          let minEv = -1;
+          for (let e = 0; e <= 252; e += 4) {
+            if (finalStat(gen, 'spe', sp.baseStats.spe, ivs.spe, e, args.level, nature) > targetSpeed) {
+              minEv = e;
+              break;
+            }
+          }
+          if (minEv < 0) throw new Error(`Cannot outspeed ${targetSpeed} with this nature/IV.`);
+          required.spe = Math.max(required.spe, minEv);
+          verification.push(`outspeed: ${minEv} Speed EVs -> ${finalStat(gen, 'spe', sp.baseStats.spe, ivs.spe, minEv, args.level, nature)} > ${targetSpeed}`);
+        }
+
+        if (args.kill) {
+          const mv = dex.moves.get(args.kill.move);
+          requireExists(mv, 'move', args.kill.move);
+          const target = buildPokemon(gen, args.kill.target);
+          const calcMv = new CalcMove(genCalc, args.kill.move);
+          const offStat = mv.category === 'Special' ? 'spa' : 'atk';
+          const needPerHit = Math.ceil(target.maxHP() / args.kill.hits);
+          let minEv = -1;
+          let range: [number, number] = [0, 0];
+          for (let e = 0; e <= 252; e += 4) {
+            const attacker = build({ [offStat]: e });
+            const res = calculate(genCalc, attacker, target, calcMv, field);
+            const r = res.range();
+            if (r[0] >= needPerHit) {
+              minEv = e;
+              range = r;
+              break;
+            }
+          }
+          if (minEv < 0) throw new Error(`Cannot guarantee a ${args.kill.hits}-hit KO on ${args.kill.target.species}.`);
+          required[offStat] = Math.max(required[offStat], minEv);
+          verification.push(`kill: ${minEv} ${offStat.toUpperCase()} EVs -> ${range[0]}-${range[1]} vs ${target.maxHP()} HP (min ${Math.round((range[0] / target.maxHP()) * 100)}%)`);
+        }
+
+        const used = STATS.reduce((s, st) => s + (required[st] ?? 0), 0);
+        const remaining = Math.max(0, 510 - used);
+        const add = Math.min(252 - (required[args.maximize] ?? 0), Math.floor(remaining / 4) * 4);
+        required[args.maximize] = (required[args.maximize] ?? 0) + add;
+
+        const finalStats: Record<string, number> = {};
+        for (const st of STATS) {
+          finalStats[st] = finalStat(gen, st, sp.baseStats[st], ivs[st], required[st], args.level, nature);
+        }
+
+        return ok({
+          species: sp.name,
+          generation: gen,
+          level: args.level,
+          nature,
+          item: args.item,
+          evs: required,
+          stats: finalStats,
+          totalEVs: STATS.reduce((s, st) => s + required[st], 0),
+          unusedEVs: Math.max(0, 508 - STATS.reduce((s, st) => s + required[st], 0)),
+          verification,
+          note: 'EVs are computed in steps of 4 (508 usable of 510). The maximize stat is capped at 252; unused EVs can be reallocated manually.',
         });
       },
     ),

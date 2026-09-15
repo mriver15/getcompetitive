@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `speed_check` — final Speed with nature/EV/IV/boosts/Choice Scarf, compared
   against a Regulation Set's legal roster.
 - Move validation in `check_legality` — flags moves a species cannot learn.
+- `optimize_evs` — EV spread solver (min EVs to survive / outspeed / guarantee a
+  KO, then maximize a stat).
+- Heuristic 0-100 team score in `analyze_team` (defensive, coverage, speed).
 
 ## [0.1.0] - 2026-09-14
 
