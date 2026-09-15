@@ -7,6 +7,7 @@
  *  - team:   archetypes, tier lists, speed tiers
  *  - calc:   stat calculation, full damage calculation
  */
+import { readFileSync } from 'node:fs';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { registerDataTools } from './tools/data.js';
@@ -16,9 +17,13 @@ import { registerRegulationTools } from './tools/regulations.js';
 import { registerAnalyzeTools } from './tools/analyze.js';
 import { registerMetaTools } from './tools/meta.js';
 
+const { version } = JSON.parse(
+  readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
+) as { version: string };
+
 const server = new McpServer({
   name: 'getcompetitive',
-  version: '0.1.0',
+  version,
 });
 
 registerDataTools(server);
