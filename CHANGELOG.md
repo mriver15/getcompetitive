@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-09-15
+
+### Changed
+
+- Releases publish through npm trusted publishing: the release workflow
+  authenticates over OIDC (`id-token: write`) and installs npm >= 11.15, so no
+  long-lived credential is involved and provenance attestations are generated
+  automatically.
+
 ## [1.1.0] - 2026-09-15
 
 ### Changed
