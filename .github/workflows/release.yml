@@ -9,11 +9,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      # Lets npm authenticate via OIDC trusted publishing when the package is
-      # configured with this repository as its trusted publisher, which needs no
-      # long-lived token. `secrets.NPM_TOKEN` remains the fallback path, and it
-      # must be an npm *automation* token (or a granular token with 2FA bypass) —
-      # a classic publish token fails with EOTP in CI.
+      # OIDC for npm trusted publishing. The npm CLI prefers the OIDC environment
+      # over a configured token, so once this repository is registered as the
+      # package's trusted publisher, no long-lived credential is involved.
       id-token: write
     steps:
       - uses: actions/checkout@v4
@@ -21,8 +19,17 @@ jobs:
         with:
           node-version: 22
           registry-url: "https://registry.npmjs.org"
+      # Trusted publishing and staged publishing need npm >= 11.5.1, and
+      # `npm trust` needs >= 11.15.0; the runner's bundled npm can be older.
+      - run: npm install -g npm@^11.15.0
       - run: npm ci
       - run: npm test
       - run: npm publish
         env:
+          # Used only when no trusted publisher is configured. npm removed
+          # classic and automation tokens in November 2025, so this must be a
+          # granular access token with "Bypass two-factor authentication"
+          # enabled and read-and-write publish access — the default (bypass off)
+          # fails in CI with EOTP. Direct publish from bypass-2FA tokens is
+          # scheduled for removal in January 2027.
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
