@@ -92,7 +92,7 @@ export function registerRegulationTools(server: McpServer) {
     'check_legality',
     {
       description:
-        'Check a team against a Pokémon Champions Regulation Set. Takes a list of up to 6 {species, item} entries and reports: illegal species (not in the set roster), Species Clause violations (same National Dex number), Item Clause violations (duplicate items), team size, and which members may Mega Evolve (remember: only one Mega per battle).',
+        'Check a team against a Pokémon Champions Regulation Set. Takes a list of up to 6 {species, item, moves} entries and reports: illegal species (not in the set roster), Species Clause violations (same National Dex number), Item Clause violations (duplicate items), illegal moves (not learnable by that species), team size, and which members may Mega Evolve (remember: only one Mega per battle).',
       inputSchema: {
         regulation: z.string(),
         team: z
@@ -100,13 +100,14 @@ export function registerRegulationTools(server: McpServer) {
             z.object({
               species: z.string(),
               item: z.string().optional(),
+              moves: z.array(z.string()).optional(),
             }),
           )
           .min(1)
           .max(6),
       },
     },
-    wrap(async (args: { regulation: string; team: { species: string; item?: string }[] }) => {
+    wrap(async (args: { regulation: string; team: { species: string; item?: string; moves?: string[] }[] }) => {
       const set = getRegulationSet(args.regulation);
       if (!set) {
         throw new Error(
@@ -149,6 +150,25 @@ export function registerRegulationTools(server: McpServer) {
           seenItems.set(itemId, [...(seenItems.get(itemId) ?? []), entry.item]);
         }
 
+        const moveChecks: { move: string; legal: boolean; note?: string }[] = [];
+        if (sp.exists && entry.moves?.length) {
+          const ls = await dex.learnsets.getByID(toID(sp.name));
+          const lsEff = ls.exists ? ls : await dex.learnsets.getByID(toID(sp.baseSpecies || sp.name));
+          for (const mv of entry.moves) {
+            const m = dex.moves.get(mv);
+            const mid = toID(mv);
+            if (!m.exists) {
+              violations.push(`Unknown move "${mv}" on ${sp.name}.`);
+              moveChecks.push({ move: mv, legal: false, note: 'unknown move' });
+            } else if (!lsEff.learnset?.[mid]) {
+              violations.push(`Illegal move: ${sp.name} cannot learn ${m.name} in this format.`);
+              moveChecks.push({ move: m.name, legal: false, note: 'not in learnset' });
+            } else {
+              moveChecks.push({ move: m.name, legal: true });
+            }
+          }
+        }
+
         members.push({
           species: sp.exists ? sp.name : entry.species,
           baseSpecies: sp.exists ? baseName : undefined,
@@ -156,6 +176,7 @@ export function registerRegulationTools(server: McpServer) {
           itemValid: entry.item ? !!dex.items.get(entry.item).exists : undefined,
           legal,
           megaCapable: sp.exists ? megaSet.has(baseId) : false,
+          ...(moveChecks.length ? { moves: moveChecks } : {}),
         });
       }
 

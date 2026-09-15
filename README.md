@@ -11,7 +11,7 @@ teams — including **Pokémon Champions / VGC** regulations.
 
 ## What it provides
 
-- **20 tools** across four domains: data, team building, battle mechanics, and official regulation sets
+- **22 tools** across four domains: data, team building, battle mechanics, and official regulation sets
 - Full **Pokémon Showdown** competitive dataset — species, alternate forms, stats, moves, items, abilities, natures, learnsets, types, tiers
 - **Battle math** from Smogon's calculator — stat calculation and full damage calculation (weather, terrain, boosts, items, Tera)
 - **Official Regulation Sets** (M-A → M-C) with seasonal legal rosters and team legality checking
@@ -50,13 +50,15 @@ Built on [`@pkmn/dex`](https://github.com/pkmn/EPOKe) (Showdown data) and
 | --- | --- |
 | `list_regulations` | Official Regulation Sets with dates, status, and roster size |
 | `get_regulation` | Full set rules: battle rules, clauses, Mega rules, and the complete legal roster |
-| `check_legality` | Validate a team against a set: illegal species, Species/Item Clause, team size, Mega eligibility |
+| `check_legality` | Validate a team against a set: illegal species, Species/Item Clause, illegal moves, team size, Mega eligibility |
 
 ### Battle mechanics
 | Tool | Purpose |
 | --- | --- |
 | `calculate_stats` | Final 6 stats at a level with EVs/IVs/nature (in-game formula) |
 | `calculate_damage` | Full damage calc (sets, item, ability, boosts, weather, terrain, hazards) |
+| `calc_matchups` | Batch damage: one attacker vs many defenders — best move, damage range, KO chance, who moves first |
+| `speed_check` | Final Speed (nature/EV/IV/boost/Scarf) vs a regulation roster's invested/uninvested speeds |
 
 > **Two taxonomies.** `list_tiers` / `speed_tiers` use **Smogon fan tiers**
 > (OU/UU/Uber — a community laddering system). The Regulation tools use the

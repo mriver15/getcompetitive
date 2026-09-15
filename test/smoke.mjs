@@ -81,6 +81,22 @@ const calls = [
     ],
     regulation: 'm-c',
   }],
+  ['calc_matchups', {
+    attacker: { species: 'Garchomp', level: 50, nature: 'Jolly', evs: { atk: 252, spe: 252 }, item: 'Choice Band', moves: ['Earthquake', 'Dragon Claw', 'Rock Slide'] },
+    defenders: [
+      { species: 'Dragapult', level: 50, nature: 'Timid', evs: { spa: 252, spe: 252 } },
+      { species: 'Gholdengo', level: 50, nature: 'Bold', evs: { hp: 252, def: 252 } },
+      { species: 'Corviknight', level: 50, nature: 'Impish', evs: { hp: 252, def: 252 } },
+    ],
+  }],
+  ['speed_check', { species: 'Garchomp', level: 50, nature: 'Jolly', evs: { spe: 252 }, regulation: 'm-c' }],
+  ['check_legality', {
+    regulation: 'm-c',
+    team: [
+      { species: 'Garchomp', item: 'Choice Band', moves: ['Earthquake', 'Dragon Claw', 'Rock Slide'] },
+      { species: 'Gholdengo', item: 'Leftovers', moves: ['Make It Rain', 'Spore'] },
+    ],
+  }],
 ];
 
 let failed = 0;

@@ -3,7 +3,9 @@
  */
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { normalizeGen, getDex, statTable, damageResult, STATS } from '../dex.js';
+import { Move as CalcMove, calculate } from '@smogon/calc';
+import { normalizeGen, getDex, statTable, damageResult, finalStat, buildPokemon, buildField, getCalcGen, STATS } from '../dex.js';
+import { getRegulationSet } from '../regulations.js';
 import { ok, wrap, requireExists } from '../result.js';
 
 const genSchema = z.number().int().min(1).max(9).default(9);
@@ -23,7 +25,20 @@ const setSchema = z.object({
   abilityOn: z.boolean().optional(),
   isDynamaxed: z.boolean().optional(),
   curHP: z.number().optional(),
+  moves: z.array(z.string()).optional(),
 });
+
+/** Flatten a calc damage value (number | number[] | number[][]) into a flat roll list. */
+function flatDamage(d: unknown): number[] {
+  if (typeof d === 'number') return [d];
+  if (Array.isArray(d)) return d.flat(Infinity).map(Number);
+  return [];
+}
+
+/** Stat-stage multiplier (e.g. +1 = 1.5x, +2 = 2x, -1 = 0.667x). */
+function boostMult(stage: number): number {
+  return stage >= 0 ? (2 + stage) / 2 : 2 / (2 - stage);
+}
 
 export function registerCalcTools(server: McpServer) {
   server.registerTool(
@@ -163,6 +178,258 @@ export function registerCalcTools(server: McpServer) {
           args.field ?? {},
         );
         return ok(result);
+      },
+    ),
+  );
+
+  server.registerTool(
+    'calc_matchups',
+    {
+      description:
+        'Batch damage calculation: one attacker (optionally with a moveset) against a list of defenders. For each defender, picks the attacking move that deals the most damage and returns the damage range, KO chance, immunity, and who moves first. Runs many matchups in one call instead of repeated calculate_damage calls.',
+      inputSchema: {
+        attacker: setSchema,
+        move: z.string().optional(),
+        defenders: z.array(setSchema).min(1).max(30),
+        field: z
+          .object({
+            gameType: z.enum(['Singles', 'Doubles']).optional(),
+            weather: z.string().optional(),
+            terrain: z.string().optional(),
+          })
+          .optional(),
+        generation: genSchema,
+      },
+    },
+    wrap(
+      async (args: {
+        attacker: {
+          species: string;
+          level?: number;
+          nature?: string;
+          ivs?: Record<string, number>;
+          evs?: Record<string, number>;
+          item?: string;
+          ability?: string;
+          boosts?: Record<string, number>;
+          status?: string;
+          teraType?: string;
+          moves?: string[];
+        };
+        move?: string;
+        defenders: {
+          species: string;
+          level?: number;
+          nature?: string;
+          ivs?: Record<string, number>;
+          evs?: Record<string, number>;
+          item?: string;
+          ability?: string;
+          boosts?: Record<string, number>;
+          status?: string;
+          teraType?: string;
+        }[];
+        field?: { gameType?: 'Singles' | 'Doubles'; weather?: string; terrain?: string };
+        generation: number;
+      }) => {
+        const gen = normalizeGen(args.generation);
+        const dex = getDex(gen);
+        requireExists(dex.species.get(args.attacker.species), 'Pokemon species', args.attacker.species);
+
+        const moveNames = args.move ? [args.move] : (args.attacker.moves ?? []);
+        if (moveNames.length === 0) {
+          throw new Error('Provide `move`, or `attacker.moves` to pick the best move per defender.');
+        }
+        for (const mv of moveNames) requireExists(dex.moves.get(mv), 'move', mv);
+
+        const attacker = buildPokemon(gen, args.attacker);
+        const field = buildField(args.field ?? {});
+        const genCalc = getCalcGen(gen);
+        const atkSpe = attacker.stats.spe;
+
+        const matchups: {
+          defender: string;
+          bestMove: string | null;
+          damageRange: [number, number];
+          koChance?: string;
+          description: string;
+          immune: boolean;
+          speed: { attacker: number; defender: number; attackerMovesFirst: boolean };
+        }[] = [];
+
+        for (const defSpec of args.defenders) {
+          requireExists(dex.species.get(defSpec.species), 'Pokemon species', defSpec.species);
+          const defender = buildPokemon(gen, defSpec);
+
+          let best: {
+            move: string;
+            maxDmg: number;
+            range: [number, number];
+            desc: string;
+            ko?: string;
+          } | null = null;
+
+          for (const mvName of moveNames) {
+            const mv = new CalcMove(genCalc, mvName);
+            let result;
+            try {
+              result = calculate(genCalc, attacker, defender, mv, field);
+            } catch {
+              continue;
+            }
+            const flat = flatDamage(result.damage);
+            const maxDmg = flat.length ? Math.max(...flat) : 0;
+            if (best === null || maxDmg > best.maxDmg) {
+              let desc = '';
+              let ko: string | undefined;
+              try {
+                desc = result.desc();
+                ko = result.kochance().text;
+              } catch {
+                desc = `${attacker.name} ${mv.name} vs. ${defender.name}: 0 damage (immune).`;
+              }
+              best = {
+                move: mv.name,
+                maxDmg,
+                range: flat.length ? ([Math.min(...flat), Math.max(...flat)] as [number, number]) : [0, 0],
+                desc,
+                ko,
+              };
+            }
+          }
+
+          const defSpe = defender.stats.spe;
+          matchups.push({
+            defender: defender.name,
+            bestMove: best ? best.move : null,
+            damageRange: best ? best.range : [0, 0],
+            koChance: best?.ko,
+            description: best ? best.desc : 'No damage-dealing move resolved.',
+            immune: best ? best.maxDmg === 0 : true,
+            speed: { attacker: atkSpe, defender: defSpe, attackerMovesFirst: atkSpe >= defSpe },
+          });
+        }
+
+        return ok({
+          generation: gen,
+          attacker: attacker.name,
+          move: args.move ?? 'best of moveset',
+          matchups,
+        });
+      },
+    ),
+  );
+
+  server.registerTool(
+    'speed_check',
+    {
+      description:
+        'Compute a Pokemon\u2019s final Speed (nature, EVs, IVs, stat boosts, Choice Scarf), then compare it against a Regulation Set\u2019s legal roster at two reference investment levels: max (252 EV, +Spe nature) and uninvested (0 EV, neutral). Returns what you outspeed, what you conditionally tie, and what outspeeds you.',
+      inputSchema: {
+        species: z.string(),
+        level: z.number().int().min(1).max(100).default(50),
+        nature: z.string().optional(),
+        evs: statMap,
+        ivs: statMap,
+        boosts: statMap,
+        item: z.string().optional(),
+        regulation: z.string().optional(),
+        generation: genSchema,
+      },
+    },
+    wrap(
+      async (args: {
+        species: string;
+        level: number;
+        nature?: string;
+        evs?: Record<string, number>;
+        ivs?: Record<string, number>;
+        boosts?: Record<string, number>;
+        item?: string;
+        regulation?: string;
+        generation: number;
+      }) => {
+        const gen = normalizeGen(args.generation);
+        const dex = getDex(gen);
+        const sp = dex.species.get(args.species);
+        requireExists(sp, 'Pokemon species', args.species);
+
+        const nature = args.nature ?? 'Serious';
+        requireExists(dex.natures.get(nature), 'nature', nature);
+
+        const speEV = args.evs?.spe ?? 0;
+        const speIV = args.ivs?.spe ?? 31;
+        const boost = args.boosts?.spe ?? 0;
+        if (speEV < 0 || speEV > 252) throw new Error('EV "spe" must be 0-252.');
+        if (speIV < 0 || speIV > 31) throw new Error('IV "spe" must be 0-31.');
+        if (boost < -6 || boost > 6) throw new Error('Boost "spe" must be -6..6.');
+
+        let speed = finalStat(gen, 'spe', sp.baseStats.spe, speIV, speEV, args.level, nature);
+        const modifiers: string[] = [];
+        if (boost !== 0) {
+          speed = Math.floor(speed * boostMult(boost));
+          modifiers.push(`Speed stage ${boost > 0 ? '+' : ''}${boost}`);
+        }
+        if (args.item) {
+          const it = dex.items.get(args.item);
+          requireExists(it, 'item', args.item);
+          if (it.id === 'choicescarf') {
+            speed = Math.floor(speed * 1.5);
+            modifiers.push('Choice Scarf x1.5');
+          } else {
+            modifiers.push(`item "${it.name}" (no speed effect)`);
+          }
+        }
+
+        let comparison: {
+          regulation: string;
+          yourSpeed: number;
+          outspeeds: { count: number; threats: { species: string; baseSpe: number; maxSpe: number }[] };
+          conditional: { count: number; threats: { species: string; baseSpe: number; maxSpe: number; minSpe: number }[] };
+          losesTo: { count: number; threats: { species: string; baseSpe: number; minSpe: number }[] };
+        } | undefined;
+
+        if (args.regulation) {
+          const set = getRegulationSet(args.regulation);
+          if (!set) throw new Error(`Unknown regulation set "${args.regulation}".`);
+          const outspeeds: { species: string; baseSpe: number; maxSpe: number }[] = [];
+          const conditional: { species: string; baseSpe: number; maxSpe: number; minSpe: number }[] = [];
+          const losesTo: { species: string; baseSpe: number; minSpe: number }[] = [];
+          for (const name of set.eligibleSpecies) {
+            const s = dex.species.get(name);
+            if (!s.exists) continue;
+            const base = s.baseStats.spe;
+            const maxSpe = finalStat(gen, 'spe', base, 31, 252, args.level, 'Jolly');
+            const minSpe = finalStat(gen, 'spe', base, 31, 0, args.level, 'Serious');
+            if (speed > maxSpe) outspeeds.push({ species: s.name, baseSpe: base, maxSpe });
+            else if (speed < minSpe) losesTo.push({ species: s.name, baseSpe: base, minSpe });
+            else conditional.push({ species: s.name, baseSpe: base, maxSpe, minSpe });
+          }
+          const byMax = (a: { maxSpe: number }, b: { maxSpe: number }) => b.maxSpe - a.maxSpe;
+          outspeeds.sort(byMax);
+          conditional.sort(byMax);
+          losesTo.sort((a, b) => b.minSpe - a.minSpe);
+          comparison = {
+            regulation: set.name,
+            yourSpeed: speed,
+            outspeeds: { count: outspeeds.length, threats: outspeeds.slice(0, 15) },
+            conditional: { count: conditional.length, threats: conditional.slice(0, 15) },
+            losesTo: { count: losesTo.length, threats: losesTo.slice(0, 15) },
+          };
+        }
+
+        return ok({
+          species: sp.name,
+          generation: gen,
+          level: args.level,
+          nature,
+          baseSpe: sp.baseStats.spe,
+          evSpe: speEV,
+          ivSpe: speIV,
+          finalSpeed: speed,
+          modifiers,
+          comparison,
+        });
       },
     ),
   );

@@ -303,6 +303,7 @@ export interface SetInput {
   abilityOn?: boolean;
   isDynamaxed?: boolean;
   curHP?: number;
+  moves?: string[];
 }
 
 function cleanMap(map: Record<string, number> | undefined, allowed: readonly string[], label: string) {
@@ -357,6 +358,7 @@ export function buildPokemon(gen: GenerationNum, input: SetInput): Pokemon {
   if (input.abilityOn !== undefined) options.abilityOn = input.abilityOn;
   if (input.isDynamaxed !== undefined) options.isDynamaxed = input.isDynamaxed;
   if (input.curHP !== undefined) options.curHP = input.curHP;
+  if (input.moves) options.moves = input.moves;
 
   return new Pokemon(getCalcGen(gen), input.species, options as never);
 }
