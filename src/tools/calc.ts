@@ -66,7 +66,7 @@ const setSchema = z.object({
   moves: z
     .array(z.string())
     .optional()
-    .describe('Moveset names, e.g. ["Earthquake", "Dragon Claw"]; used by `calc_matchups` to pick the hardest-hitting move per defender.'),
+    .describe('Moveset names, e.g. ["Earthquake", "Dragon Claw"]; used by `calculate_matchups` to pick the hardest-hitting move per defender.'),
 });
 
 /** Flatten a calc damage value (number | number[] | number[][]) into a flat roll list. */
@@ -111,7 +111,7 @@ const reportedEvs = z
 const damageRangeSchema = z
   .tuple([z.number(), z.number()])
   .describe(
-    '[minimum, maximum] damage: `calculate_damage` totals every roll (multi-hit moves are summed), while `calc_matchups` reports the flattened per-hit rolls, so its bounds stay single-hit values. [0, 0] means nothing could be calculated.',
+    '[minimum, maximum] damage: `calculate_damage` totals every roll (multi-hit moves are summed), while `calculate_matchups` reports the flattened per-hit rolls, so its bounds stay single-hit values. [0, 0] means nothing could be calculated.',
   );
 
 /** One side of a damage calculation as the calc resolved it (see `summarizeSet` in dex.ts). */
@@ -138,7 +138,7 @@ export function registerCalcTools(server: McpServer) {
     {
       title: 'Calculate final stats',
       description:
-        'Compute one Pok\u00e9mon\u2019s final six stats at a level from its nature, IVs, and EVs, returning the stat table plus base stats and BST. Stats only, never a battle: use `calculate_damage` or `calc_matchups` for damage rolls, `speed_check` to place the Speed stat against a regulation roster, and `optimize_evs` when the spread must be derived from a goal. EVs are 0-252 per stat with a 510 total cap, IVs 0-31, level defaults to 50 and nature to Serious. Read-only and offline; unknown species or nature names return an isError.',
+        'Compute one Pok\u00e9mon\u2019s final six stats at a level from its nature, IVs, and EVs, returning the stat table plus base stats and BST. Stats only, never a battle: use `calculate_damage` or `calculate_matchups` for damage rolls, `check_speed` to place the Speed stat against a regulation roster, and `optimize_evs` when the spread must be derived from a goal. EVs are 0-252 per stat with a 510 total cap, IVs 0-31, level defaults to 50 and nature to Serious. Read-only and offline; unknown species or nature names return an isError.',
       annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {
         species: z.string().describe('Species or form name, e.g. "Garchomp", "Ogerpon-Wellspring".'),
@@ -213,7 +213,7 @@ export function registerCalcTools(server: McpServer) {
     {
       title: 'Calculate damage for one matchup',
       description:
-        'Simulate one attack end to end: one attacker set, one defender set, one named move, optionally under weather, terrain, game type, or side conditions. Use `calc_matchups` when one attacker must be tested against several defenders, and `calculate_stats` for stat tables with no battle. `field.weather` takes Sand/Sun/Rain/Hail/Snow and `field.terrain` Electric/Grassy/Psychic/Misty; `attackerSide`/`defenderSide` take calc flags (isReflect, isLightScreen, isAuroraVeil, spikes 0-3, isSR), and set levels default to 100 here. Species and move names are validated first, so typos return an isError. Returns every damage roll, damageRange, koChance text, a description line, and both sets\u2019 computed stats. Read-only and offline.',
+        'Simulate one attack end to end: one attacker set, one defender set, one named move, optionally under weather, terrain, game type, or side conditions. Use `calculate_matchups` when one attacker must be tested against several defenders, and `calculate_stats` for stat tables with no battle. `field.weather` takes Sand/Sun/Rain/Hail/Snow and `field.terrain` Electric/Grassy/Psychic/Misty; `attackerSide`/`defenderSide` take calc flags (isReflect, isLightScreen, isAuroraVeil, spikes 0-3, isSR), and set levels default to 100 here. Species and move names are validated first, so typos return an isError. Returns every damage roll, damageRange, koChance text, a description line, and both sets\u2019 computed stats. Read-only and offline.',
       annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {
         attacker: setSchema.describe('The attacking Pok\u00e9mon: species plus optional level, nature, IVs, EVs, item, ability, boosts, status, Tera type, and current HP.'),
@@ -324,7 +324,7 @@ export function registerCalcTools(server: McpServer) {
   );
 
   server.registerTool(
-    'calc_matchups',
+    'calculate_matchups',
     {
       title: 'Batch damage matchups',
       description:
@@ -507,11 +507,11 @@ export function registerCalcTools(server: McpServer) {
   );
 
   server.registerTool(
-    'speed_check',
+    'check_speed',
     {
       title: 'Check Speed against a regulation',
       description:
-        'Compute one Pok\u00e9mon\u2019s final Speed and, given a Regulation Set, rank it against that roster at its fastest (252 EV, +Spe nature) and uninvested reference speeds. Speed only: for damage use `calculate_damage` or `calc_matchups`, for a tier-wide ranking use `speed_tiers`, and to find the Speed EVs that beat a target use `optimize_evs`. Applies `boosts.spe` (-6..+6) and Choice Scarf \u00d71.5; other items are reported as Speed-neutral, and `regulation` is optional. Returns finalSpeed, modifiers, and outspeeds/conditional/losesTo counts with up to 15 threats each. Read-only and offline; unknown names return an isError.',
+        'Compute one Pok\u00e9mon\u2019s final Speed and, given a Regulation Set, rank it against that roster at its fastest (252 EV, +Spe nature) and uninvested reference speeds. Speed only: for damage use `calculate_damage` or `calculate_matchups`, for a tier-wide ranking use `list_speed_tiers`, and to find the Speed EVs that beat a target use `optimize_evs`. Applies `boosts.spe` (-6..+6) and Choice Scarf \u00d71.5; other items are reported as Speed-neutral, and `regulation` is optional. Returns finalSpeed, modifiers, and outspeeds/conditional/losesTo counts with up to 15 threats each. Read-only and offline; unknown names return an isError.',
       annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {
         species: z.string().describe('Species or form name, e.g. "Dragapult", "Ogerpon-Wellspring".'),
@@ -696,7 +696,7 @@ export function registerCalcTools(server: McpServer) {
     {
       title: 'Optimize EVs for a goal',
       description:
-        'Derive a minimal EV spread for one Pok\u00e9mon satisfying up to three goals: survive a named attack, outspeed a target Speed, and guarantee a KO in 1-4 hits. Use it when EVs must come from a goal \u2014 `calculate_stats` evaluates a spread you already have, `speed_check` ranks Speed without deriving EVs, and `get_set` returns a curated spread. Supplying none of survive/outspeed/kill errors; `outspeed` takes a set `target` or a raw `speed`, and leftover EVs fill `maximize` (default spe). Returns the spread, resulting stats, totalEVs/unusedEVs of the 508 usable, and a verification line per goal. Read-only and offline; an unreachable goal returns an isError.',
+        'Derive a minimal EV spread for one Pok\u00e9mon satisfying up to three goals: survive a named attack, outspeed a target Speed, and guarantee a KO in 1-4 hits. Use it when EVs must come from a goal \u2014 `calculate_stats` evaluates a spread you already have, `check_speed` ranks Speed without deriving EVs, and `get_set` returns a curated spread. Supplying none of survive/outspeed/kill errors; `outspeed` takes a set `target` or a raw `speed`, and leftover EVs fill `maximize` (default spe). Returns the spread, resulting stats, totalEVs/unusedEVs of the 508 usable, and a verification line per goal. Read-only and offline; an unreachable goal returns an isError.',
       annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {
         species: z.string().describe('Species or form name to optimize, e.g. "Garchomp", "Incineroar".'),

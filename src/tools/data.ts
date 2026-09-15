@@ -135,7 +135,7 @@ export function registerDataTools(server: McpServer) {
     {
       title: 'Get Pokémon data',
       description:
-        'Look up one Pokémon and return its competitive profile: types, base stats and BST, abilities by slot, singles/doubles tier, weight, gender ratio, egg groups, and evolutions. Accepts any Showdown name or form, case- and punctuation-insensitive ("garchomp", "Ogerpon-Wellspring", "rotom wash"); unknown names return an isError listing near matches. Use `search` when you only have a partial name, `list_forms` for alternate or cosmetic forms, and `calculate_stats` when you need stats computed from EVs, IVs, and nature. Read-only and offline over the bundled Showdown dataset — no network, auth, or rate limits.',
+        'Look up one Pokémon and return its competitive profile: types, base stats and BST, abilities by slot, singles/doubles tier, weight, gender ratio, egg groups, and evolutions. Accepts any Showdown name or form, case- and punctuation-insensitive ("garchomp", "Ogerpon-Wellspring", "rotom wash"); unknown names return an isError listing near matches. Use `search_dex` when you only have a partial name, `list_forms` for alternate or cosmetic forms, and `calculate_stats` when you need stats computed from EVs, IVs, and nature. Read-only and offline over the bundled Showdown dataset — no network, auth, or rate limits.',
       annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {
         species: z
@@ -237,7 +237,7 @@ export function registerDataTools(server: McpServer) {
     {
       title: 'List Pokémon forms',
       description:
-        'List every form of one species — base, alternate, cosmetic, and battle-only — with each form\'s types, base stats, abilities, and tier, plus the total count. Forms that do not exist in the requested generation are returned with a note rather than dropped, so a missing entry is visible. Use it before assuming a form exists; for a single species\' full profile use `get_pokemon`, and to search names across species use `search`. Read-only and offline; unknown species return an isError with near matches.',
+        'List every form of one species — base, alternate, cosmetic, and battle-only — with each form\'s types, base stats, abilities, and tier, plus the total count. Forms that do not exist in the requested generation are returned with a note rather than dropped, so a missing entry is visible. Use it before assuming a form exists; for a single species\' full profile use `get_pokemon`, and to search names across species use `search_dex`. Read-only and offline; unknown species return an isError with near matches.',
       annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {
         species: z
@@ -317,7 +317,7 @@ export function registerDataTools(server: McpServer) {
   );
 
   server.registerTool(
-    'search',
+    'search_dex',
     {
       title: 'Search the dataset by name',
       description:
@@ -409,7 +409,7 @@ export function registerDataTools(server: McpServer) {
       },
       outputSchema: {
         name: z.string().describe('Move name, e.g. "Earthquake".'),
-        num: z.number().describe('Move number in the dataset, which is also the sort key `search` returns moves by.'),
+        num: z.number().describe('Move number in the dataset, which is also the sort key `search_dex` returns moves by.'),
         gen: z.number().describe('Generation the move was introduced in.'),
         type: z.string().describe(`Move type. One of ${TYPE_NAMES}.`),
         category: z.string().describe('Damage class: "Physical", "Special", or "Status".'),
@@ -566,7 +566,7 @@ export function registerDataTools(server: McpServer) {
     {
       title: 'Get ability data',
       description:
-        'Get one ability\'s effect text, flags, and the generations it exists in. Use it before relying on an ability in damage or speed reasoning; the set inputs of `calculate_damage` and `speed_check` take the ability or item name and apply it themselves. Accepts ability names case-insensitively; unknown abilities return an isError with near matches. Read-only and offline.',
+        'Get one ability\'s effect text, flags, and the generations it exists in. Use it before relying on an ability in damage or speed reasoning; the set inputs of `calculate_damage` and `check_speed` take the ability or item name and apply it themselves. Accepts ability names case-insensitively; unknown abilities return an isError with near matches. Read-only and offline.',
       annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {
         ability: z.string().describe('Ability name, e.g. "Intimidate", "Protosynthesis".'),
@@ -599,7 +599,7 @@ export function registerDataTools(server: McpServer) {
     {
       title: 'Get nature effect',
       description:
-        'Get one nature\'s stat effect: the stat it raises 10% and the stat it lowers 10%, or a neutral effect for the five natures that change nothing (Hardy, Docile, Serious, Bashful, Quirky). Use it when assembling a set, since `calculate_stats`, `calculate_damage`, `speed_check`, and `optimize_evs` all take a nature name rather than a numeric modifier. Accepts nature names case-insensitively; unknown natures return an isError. Read-only and offline.',
+        'Get one nature\'s stat effect: the stat it raises 10% and the stat it lowers 10%, or a neutral effect for the five natures that change nothing (Hardy, Docile, Serious, Bashful, Quirky). Use it when assembling a set, since `calculate_stats`, `calculate_damage`, `check_speed`, and `optimize_evs` all take a nature name rather than a numeric modifier. Accepts nature names case-insensitively; unknown natures return an isError. Read-only and offline.',
       annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {
         nature: z.string().describe('Nature name, e.g. "Jolly", "Timid", "Impish".'),
@@ -700,7 +700,7 @@ export function registerDataTools(server: McpServer) {
     {
       title: 'Get type matchup chart entry',
       description:
-        'Get the defensive profile of one type: what it is weak to, what it resists, what it is immune to, plus the Hidden Power IVs for that type. Use it for a type\'s own matchups; for one specific pairing pass attacker and defender to `type_chart`, and for a Pokémon\'s combined defensive chart give `type_chart` the species name instead. Accepts type names case-insensitively; unknown types return an isError. Read-only and offline.',
+        'Get the defensive profile of one type: what it is weak to, what it resists, what it is immune to, plus the Hidden Power IVs for that type. Use it for a type\'s own matchups; for one specific pairing pass attacker and defender to `get_type_matchup`, and for a Pokémon\'s combined defensive chart give `get_type_matchup` the species name instead. Accepts type names case-insensitively; unknown types return an isError. Read-only and offline.',
       annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {
         type: z.string().describe('Type name, e.g. "Steel", "Fairy", "Ground".'),
@@ -748,7 +748,7 @@ export function registerDataTools(server: McpServer) {
   );
 
   server.registerTool(
-    'type_chart',
+    'get_type_matchup',
     {
       title: 'Resolve type effectiveness',
       description:

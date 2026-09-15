@@ -19,8 +19,8 @@ const calls = [
   ['get_pokemon', { species: 'Ogerpon-Wellspring' }],
   ['list_forms', { species: 'Rotom' }],
   ['list_forms', { species: 'Gholdengo' }],
-  ['search', { query: 'ogerpon' }],
-  ['search', { query: 'sword', kind: 'move', limit: 10 }],
+  ['search_dex', { query: 'ogerpon' }],
+  ['search_dex', { query: 'sword', kind: 'move', limit: 10 }],
   ['get_move', { move: 'Earthquake' }],
   ['get_move', { move: 'Make It Rain' }],
   ['get_item', { item: 'Choice Band' }],
@@ -28,10 +28,10 @@ const calls = [
   ['get_nature', { nature: 'Jolly' }],
   ['get_learnset', { species: 'Garchomp' }],
   ['get_type', { type: 'Steel' }],
-  ['type_chart', { attacker: 'Fire', defender: 'Grass' }],
-  ['type_chart', { attacker: 'Ice' }],
-  ['type_chart', { defender: 'Garchomp' }],
-  ['type_chart', { attacker: 'Ice', defender: 'Garchomp' }],
+  ['get_type_matchup', { attacker: 'Fire', defender: 'Grass' }],
+  ['get_type_matchup', { attacker: 'Ice' }],
+  ['get_type_matchup', { defender: 'Garchomp' }],
+  ['get_type_matchup', { attacker: 'Ice', defender: 'Garchomp' }],
   ['calculate_stats', { species: 'Garchomp', level: 50, nature: 'Jolly', evs: { atk: 252, spe: 252 } }],
   ['calculate_damage', {
     attacker: { species: 'Garchomp', level: 50, nature: 'Jolly', evs: { atk: 252, spe: 252 }, item: 'Choice Band' },
@@ -44,7 +44,7 @@ const calls = [
     move: 'Moonblast',
     field: { weather: 'Sun' },
   }],
-  ['speed_tiers', { tier: 'OU', level: 50, query: 'dragapult' }],
+  ['list_speed_tiers', { tier: 'OU', level: 50, query: 'dragapult' }],
   ['list_tiers', { league: 'singles' }],
   ['list_archetypes', {}],
   ['get_archetype', { name: 'rain' }],
@@ -83,7 +83,7 @@ const calls = [
     ],
     regulation: 'm-c',
   }],
-  ['calc_matchups', {
+  ['calculate_matchups', {
     attacker: { species: 'Garchomp', level: 50, nature: 'Jolly', evs: { atk: 252, spe: 252 }, item: 'Choice Band', moves: ['Earthquake', 'Dragon Claw', 'Rock Slide'] },
     defenders: [
       { species: 'Dragapult', level: 50, nature: 'Timid', evs: { spa: 252, spe: 252 } },
@@ -91,7 +91,7 @@ const calls = [
       { species: 'Corviknight', level: 50, nature: 'Impish', evs: { hp: 252, def: 252 } },
     ],
   }],
-  ['speed_check', { species: 'Garchomp', level: 50, nature: 'Jolly', evs: { spe: 252 }, regulation: 'm-c' }],
+  ['check_speed', { species: 'Garchomp', level: 50, nature: 'Jolly', evs: { spe: 252 }, regulation: 'm-c' }],
   ['optimize_evs', {
     species: 'Garchomp', level: 50, nature: 'Jolly', item: 'Choice Band',
     kill: { target: { species: 'Incineroar', level: 50, nature: 'Careful', evs: { hp: 252, spd: 252 } }, move: 'Earthquake' },
@@ -109,8 +109,8 @@ const calls = [
   // block (no-argument chart, missing comparison, single-goal EV solves,
   // filtered tier list, threat-list index, team without a regulation) is
   // exercised, and the SDK validates each result against the tool's schema.
-  ['type_chart', {}],
-  ['speed_check', { species: 'Garchomp', level: 50, nature: 'Jolly', evs: { spe: 252 } }],
+  ['get_type_matchup', {}],
+  ['check_speed', { species: 'Garchomp', level: 50, nature: 'Jolly', evs: { spe: 252 } }],
   ['optimize_evs', {
     species: 'Garchomp', level: 50, nature: 'Impish',
     survive: { attacker: { species: 'Incineroar', level: 50, ability: 'Intimidate', evs: { atk: 252 } }, move: 'Flare Blitz' },
@@ -147,7 +147,7 @@ for (const [name, args] of calls) {
 for (const [name, args] of [
   ['get_pokemon', { species: 'NotAMon' }],
   ['calculate_stats', { species: 'Garchomp', level: 50, evs: { atk: 999 } }],
-  ['type_chart', { attacker: 'Fire', defender: 'Bogus' }],
+  ['get_type_matchup', { attacker: 'Fire', defender: 'Bogus' }],
 ]) {
   const res = await client.callTool({ name, arguments: args });
   const isErr = !!res.isError;

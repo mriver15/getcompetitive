@@ -29,14 +29,14 @@ Built on [`@pkmn/dex`](https://github.com/pkmn/EPOKe) (Showdown data) and
 | --- | --- |
 | `get_pokemon` | Types, base stats, BST, abilities, tiers, forms, weight, gender, evolutions |
 | `list_forms` | All forms of a species (alternate, cosmetic, battle-only) |
-| `search` | Fuzzy name search across species / moves / items / abilities / natures |
+| `search_dex` | Fuzzy name search across species / moves / items / abilities / natures |
 | `get_move` | Type, category, power, accuracy, PP, priority, target, secondary effects |
 | `get_item` | Effect, flags, mega stone, Z-move, Fling, boosts |
 | `get_ability` | Effect description, flags |
 | `get_nature` | Boosts / lowers which stat |
 | `get_learnset` | All learnable moves grouped by method (level-up, TM, egg, tutor, event) |
 | `get_type` | Defensive weaknesses, resistances, immunities |
-| `type_chart` | Matchup multiplier, offensive coverage, or defensive chart (defender can be a species) |
+| `get_type_matchup` | Matchup multiplier, offensive coverage, or defensive chart (defender can be a species) |
 
 ### Team building
 | Tool | Purpose |
@@ -44,7 +44,7 @@ Built on [`@pkmn/dex`](https://github.com/pkmn/EPOKe) (Showdown data) and
 | `list_archetypes` | Recognized archetypes (Hyper Offense, Rain, Stall, Trick Room, …) with roles + members |
 | `get_archetype` | Full detail: description, roles, members, strengths, weaknesses, counters, tips |
 | `list_tiers` | All legal Pokemon grouped by competitive tier (singles/doubles) |
-| `speed_tiers` | Speed of every Pokemon in a tier at common investment levels, sorted |
+| `list_speed_tiers` | Speed of every Pokemon in a tier at common investment levels, sorted |
 | `analyze_team` | Team synergy: stacked defensive weaknesses, offensive coverage gaps, speed placement, and a heuristic 0-100 score |
 
 ### Meta (curated)
@@ -65,11 +65,11 @@ Built on [`@pkmn/dex`](https://github.com/pkmn/EPOKe) (Showdown data) and
 | --- | --- |
 | `calculate_stats` | Final 6 stats at a level with EVs/IVs/nature (in-game formula) |
 | `calculate_damage` | Full damage calc (sets, item, ability, boosts, weather, terrain, hazards) |
-| `calc_matchups` | Batch damage: one attacker vs many defenders — best move, damage range, KO chance, who moves first |
-| `speed_check` | Final Speed (nature/EV/IV/boost/Scarf) vs a regulation roster's invested/uninvested speeds |
+| `calculate_matchups` | Batch damage: one attacker vs many defenders — best move, damage range, KO chance, who moves first |
+| `check_speed` | Final Speed (nature/EV/IV/boost/Scarf) vs a regulation roster's invested/uninvested speeds |
 | `optimize_evs` | EV spread solver: min EVs to survive / outspeed / guarantee a KO, then maximize a stat |
 
-> **Two taxonomies.** `list_tiers` / `speed_tiers` use **Smogon fan tiers**
+> **Two taxonomies.** `list_tiers` / `list_speed_tiers` use **Smogon fan tiers**
 > (OU/UU/Uber — a community laddering system). The Regulation tools use the
 > **official Pokémon Champions / VGC Regulation Sets** (seasonal legal rosters).
 
@@ -140,7 +140,7 @@ npm test   # builds and drives every tool over real MCP stdio
 ## Example queries
 
 - `get_pokemon` `{ "species": "Ogerpon-Wellspring" }`
-- `type_chart` `{ "attacker": "Ice", "defender": "Garchomp" }` → 4x super effective
+- `get_type_matchup` `{ "attacker": "Ice", "defender": "Garchomp" }` → 4x super effective
 - `calculate_stats` `{ "species": "Garchomp", "level": 50, "nature": "Jolly", "evs": { "atk": 252, "spe": 252 } }`
 - `calculate_damage` `{ "attacker": { "species": "Garchomp", "level": 50, "nature": "Jolly", "evs": { "atk": 252, "spe": 252 }, "item": "Choice Band" }, "defender": { "species": "Corviknight", "level": 50, "nature": "Impish", "evs": { "hp": 252, "def": 252 } }, "move": "Dragon Claw" }`
 - `check_legality` `{ "regulation": "m-c", "team": [ { "species": "Garchomp", "item": "Choice Band" } ] }`
