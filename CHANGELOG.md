@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `optimize_evs` — EV spread solver (min EVs to survive / outspeed / guarantee a
   KO, then maximize a stat).
 - Heuristic 0-100 team score in `analyze_team` (defensive, coverage, speed).
+- `list_threats` / `get_set` — curated meta threat list and standard sets for
+  the current Pokémon Champions regulation (M-C).
+- `scripts/threat-scaffold.mjs` — scaffolds a threat list for the next regulation.
 
 ## [0.1.0] - 2026-09-14
 

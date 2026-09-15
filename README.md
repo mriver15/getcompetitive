@@ -11,7 +11,7 @@ teams — including **Pokémon Champions / VGC** regulations.
 
 ## What it provides
 
-- **23 tools** across four domains: data, team building, battle mechanics, and official regulation sets
+- **25 tools** across five domains: data, team building, meta (curated), battle mechanics, and official regulation sets
 - Full **Pokémon Showdown** competitive dataset — species, alternate forms, stats, moves, items, abilities, natures, learnsets, types, tiers
 - **Battle math** from Smogon's calculator — stat calculation and full damage calculation (weather, terrain, boosts, items, Tera)
 - **Official Regulation Sets** (M-A → M-C) with seasonal legal rosters and team legality checking
@@ -44,6 +44,12 @@ Built on [`@pkmn/dex`](https://github.com/pkmn/EPOKe) (Showdown data) and
 | `list_tiers` | All legal Pokemon grouped by competitive tier (singles/doubles) |
 | `speed_tiers` | Speed of every Pokemon in a tier at common investment levels, sorted |
 | `analyze_team` | Team synergy: stacked defensive weaknesses, offensive coverage gaps, speed placement, and a heuristic 0-100 score |
+
+### Meta (curated)
+| Tool | Purpose |
+| --- | --- |
+| `list_threats` | Curated meta threat list for a regulation (role, tier, standard set) |
+| `get_set` | Standard set for a species (item, ability, nature, EVs, 4 moves, Tera) |
 
 ### Regulations (Pokémon Champions / VGC)
 | Tool | Purpose |
@@ -116,8 +122,9 @@ npm test   # builds and drives every tool over real MCP stdio
 
 The Showdown dataset and battle math track `@pkmn/dex` / `@smogon/calc`. Official
 **Regulation Sets change seasonally**; the legal rosters are regenerated with
-`node scripts/extract-regs.mjs` (sourced from Bulbapedia, which mirrors the
-official Play! Pokémon rules). See [CONTRIBUTING](CONTRIBUTING.md).
+`node scripts/extract-regs.mjs`, and the curated **threat list / standard sets**
+(`src/threats.ts`) are keyed by regulation — scaffold a new one with
+`node scripts/threat-scaffold.mjs <regulation>`. See [CONTRIBUTING](CONTRIBUTING.md).
 
 ## Contributing
 

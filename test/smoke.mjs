@@ -48,6 +48,8 @@ const calls = [
   ['list_tiers', { league: 'singles' }],
   ['list_archetypes', {}],
   ['get_archetype', { name: 'rain' }],
+  ['list_threats', { regulation: 'm-c' }],
+  ['get_set', { species: 'Garchomp' }],
   ['list_regulations', {}],
   ['get_regulation', { regulation: 'M-C' }],
   ['check_legality', {
