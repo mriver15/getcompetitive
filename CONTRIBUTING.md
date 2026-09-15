@@ -33,6 +33,7 @@ npm test          # builds + drives every tool over real MCP stdio
 | `npm test` | Build + smoke test |
 | `npm start` | Run the server on stdio |
 | `node scripts/extract-regs.mjs` | Refresh regulation rosters |
+| `docker build -t getcompetitive .` | Build the container image (same `Dockerfile` Glama builds) |
 
 ## Conventions
 
@@ -78,3 +79,18 @@ git push --follow-tags
 
 The tag-triggered workflow runs the build and `npm publish`. Requires an
 `NPM_TOKEN` secret in the repository settings.
+
+## Directory listings (Glama)
+
+Two install paths are surfaced by directory sites: the npm package and the
+container image built from this repo's `Dockerfile`. Glama only lists a server as
+usable once it has built and tested that image, which requires a one-time setup:
+
+1. Claim the listing (GitHub sign-in as a user in `glama.json`):
+   https://glama.ai/mcp/servers/mriver15/getcompetitive/admin
+2. On the admin Dockerfile page, paste `Dockerfile` so Glama builds and tests it.
+3. After README or tool changes, request a re-sync from the same admin page — the
+   listing body is a snapshot of this README.
+
+Claims without `glama.json` also work for the repository owner's account, but the
+file keeps the listing claimable if the repo ever moves to an organisation.

@@ -4,6 +4,7 @@
 [![CI](https://github.com/mriver15/getcompetitive/actions/workflows/ci.yml/badge.svg)](https://github.com/mriver15/getcompetitive/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![node](https://img.shields.io/badge/node-%3E%3D20-green.svg)](#install)
+[![Glama](https://glama.ai/mcp/servers/mriver15/getcompetitive/badges/score.svg)](https://glama.ai/mcp/servers/mriver15/getcompetitive)
 
 A [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server that gives
 AI agents everything needed to build, analyze, and validate competitive Pokémon
@@ -73,11 +74,22 @@ Built on [`@pkmn/dex`](https://github.com/pkmn/EPOKe) (Showdown data) and
 
 ## Install
 
+### npm
+
 ```bash
 npm install -g getcompetitive   # or: npx getcompetitive
 ```
 
-Or build from source:
+### Docker
+
+No Node.js or npm install required — the image builds the server from source:
+
+```bash
+docker build -t getcompetitive .
+docker run -i --rm getcompetitive   # speaks MCP over stdio
+```
+
+### From source
 
 ```bash
 git clone https://github.com/mriver15/getcompetitive.git
@@ -88,6 +100,8 @@ npm start                       # starts the MCP server on stdio
 ```
 
 ## Configure an MCP client
+
+With npm:
 
 ```json
 {
@@ -100,7 +114,20 @@ npm start                       # starts the MCP server on stdio
 }
 ```
 
-For Claude Desktop, add the same entry under `mcpServers` in
+With Docker (after `docker build -t getcompetitive .`):
+
+```json
+{
+  "mcpServers": {
+    "getcompetitive": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "getcompetitive"]
+    }
+  }
+}
+```
+
+For Claude Desktop, add one of the same entries under `mcpServers` in
 `claude_desktop_config.json`.
 
 ## Verify

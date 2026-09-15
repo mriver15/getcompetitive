@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `list_threats` / `get_set` — curated meta threat list and standard sets for
   the current Pokémon Champions regulation (M-C).
 - `scripts/threat-scaffold.mjs` — scaffolds a threat list for the next regulation.
+- `Dockerfile` / `.dockerignore` — container install path
+  (`docker build -t getcompetitive .`), also the build spec for the Glama listing.
+- `glama.json` — maintainer claim for the Glama directory listing.
 
 ## [0.1.0] - 2026-09-14
 
