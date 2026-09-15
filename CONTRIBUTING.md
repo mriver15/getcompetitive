@@ -99,38 +99,45 @@ npm version patch | minor | major
 git push --follow-tags
 ```
 
-The tag-triggered workflow runs the build, the smoke test, and `npm publish`.
+The tag-triggered workflow runs the build, the smoke test, and `npm publish`
+using [trusted publishing](https://docs.npmjs.com/trusted-publishers) — OIDC
+only, no stored credential.
 
-### Publishing credentials
+### One-time setup
 
-npm removed legacy and classic tokens in November 2025, so "automation token"
-instructions from before then no longer apply: only **granular access tokens**
-remain, and their **Bypass two-factor authentication** checkbox is off by
-default. A token left at that default fails in CI with `EOTP`.
+1. **Publish the first version interactively.** A trusted publisher can only be
+   configured for a package that already exists on the registry, and
+   `npm stage publish` cannot stage a brand-new package, so the first release
+   cannot come from CI:
 
-Preferred — trusted publishing, no secret at all:
+   ```bash
+   npm login          # browser + one-time password
+   npm publish
+   ```
 
-```bash
-npm trust github --file release.yml --allow-publish   # needs npm >= 11.15.0
-```
+2. **Register this repository as the package's trusted publisher** (npm ≥ 11.15,
+   interactive 2FA required; run from the repo root so the package name and
+   `repository.url` come from `package.json`):
 
-`--allow-publish` matters: trust configurations created after 2026-09-03 allow
-`npm stage publish` only unless direct publishing is opted into. The same
-configuration can be made on the package's settings page at npmjs.com.
+   ```bash
+   npm trust github --file release.yml --allow-publish
+   npm trust list
+   ```
 
-Fallback — an `NPM_TOKEN` secret holding a granular token with **Read and write
-(publish and stage)** and **Bypass two-factor authentication** enabled. Treat it
-as transitional: npm is removing direct publish from bypass-2FA tokens in
-January 2027.
+   On npmjs.com the same configuration lives at *package → Settings → Trusted
+   publishing → GitHub Actions*: organization or user `mriver15`, repository
+   `getcompetitive`, workflow filename `release.yml` (filename only, and
+   case-sensitive), environment blank, and **Allow `npm publish`** enabled.
+   Configurations created after 2026-09-03 default to `npm stage publish` only.
 
-Two constraints that bite on a first release:
+3. **Lock it down once a tagged release has published successfully**: *package →
+   Settings → Publishing access → Require two-factor authentication and disallow
+   tokens*, then remove any unused tokens from the account.
 
-- A trusted publisher cannot be configured until the package exists on the
-  registry, and `npm stage publish` cannot stage a brand-new package — the first
-  version must be published interactively (`npm login` then `npm publish` from
-  the tagged commit).
-- `npm trust` requires two-factor authentication on the account and cannot be
-  run with a bypass-2FA token, only from an interactive session.
+The workflow filename, the repository, and `repository.url` in `package.json`
+must match the configuration exactly — npm does not validate it on save, and a
+mismatch only surfaces at publish time as `ENEEDAUTH`. Self-hosted runners are
+not supported by trusted publishing.
 
 ## Directory listings (Glama)
 
