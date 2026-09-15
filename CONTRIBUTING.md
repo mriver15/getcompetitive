@@ -22,6 +22,7 @@ npm test          # builds + drives every tool over real MCP stdio
 | `src/regulations.data.ts` | Generated regulation rosters — **do not edit by hand** |
 | `src/regulations.ts` | Regulation metadata (dates, rules, notes) — curated |
 | `scripts/extract-regs.mjs` | Regenerates `src/regulations.data.ts` from Bulbapedia |
+| `scripts/threat-scaffold.mjs` | Prints the Mega roster + emits a stub threat list for a regulation |
 | `test/smoke.mjs` | End-to-end smoke test (spawns the real server over stdio) |
 
 ## Scripts
@@ -52,6 +53,19 @@ node scripts/extract-regs.mjs     # regenerates the eligible/mega rosters
 
 then edit the per-set metadata (name, `start`/`end` dates, `notes`) in
 `src/regulations.ts`.
+
+## Updating the threat list / standard sets
+
+The curated threat list (`src/threats.ts`) is editorial, keyed by regulation.
+When a new set drops:
+
+```bash
+node scripts/threat-scaffold.mjs m-d   # prints the Mega roster + a stub
+```
+
+then paste the stub into `src/threats.ts`, author threats (verify each set's
+moves/abilities against the dex — `npm test` plus the smoke tool coverage), and
+update `src/index.ts` if new tools are involved. Keep `sourceAsOf` current.
 
 ## Releasing
 

@@ -152,15 +152,17 @@ export function registerRegulationTools(server: McpServer) {
 
         const moveChecks: { move: string; legal: boolean; note?: string }[] = [];
         if (sp.exists && entry.moves?.length) {
-          const ls = await dex.learnsets.getByID(toID(sp.name));
-          const lsEff = ls.exists ? ls : await dex.learnsets.getByID(toID(sp.baseSpecies || sp.name));
+          // A move is legal if it is in the form's learnset (form-exclusive moves
+          // like Rotom-Wash's Hydro Pump) OR the base species' learnset (the shared pool).
+          const lsForm = await dex.learnsets.getByID(toID(sp.name));
+          const lsBase = sp.baseSpecies && sp.baseSpecies !== sp.name ? await dex.learnsets.getByID(toID(sp.baseSpecies)) : lsForm;
           for (const mv of entry.moves) {
             const m = dex.moves.get(mv);
             const mid = toID(mv);
             if (!m.exists) {
               violations.push(`Unknown move "${mv}" on ${sp.name}.`);
               moveChecks.push({ move: mv, legal: false, note: 'unknown move' });
-            } else if (!lsEff.learnset?.[mid]) {
+            } else if (!lsForm.learnset?.[mid] && !lsBase.learnset?.[mid]) {
               violations.push(`Illegal move: ${sp.name} cannot learn ${m.name} in this format.`);
               moveChecks.push({ move: m.name, legal: false, note: 'not in learnset' });
             } else {

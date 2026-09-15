@@ -14,6 +14,7 @@ import { registerCalcTools } from './tools/calc.js';
 import { registerTeamTools } from './tools/team.js';
 import { registerRegulationTools } from './tools/regulations.js';
 import { registerAnalyzeTools } from './tools/analyze.js';
+import { registerMetaTools } from './tools/meta.js';
 
 const server = new McpServer({
   name: 'getcompetitive',
@@ -25,5 +26,6 @@ registerCalcTools(server);
 registerTeamTools(server);
 registerRegulationTools(server);
 registerAnalyzeTools(server);
+registerMetaTools(server);
 
 await server.connect(new StdioServerTransport());
