@@ -9,6 +9,12 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      # Lets npm authenticate via OIDC trusted publishing when the package is
+      # configured with this repository as its trusted publisher, which needs no
+      # long-lived token. `secrets.NPM_TOKEN` remains the fallback path, and it
+      # must be an npm *automation* token (or a granular token with 2FA bypass) —
+      # a classic publish token fails with EOTP in CI.
+      id-token: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

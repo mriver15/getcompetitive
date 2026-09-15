@@ -99,8 +99,15 @@ npm version patch | minor | major
 git push --follow-tags
 ```
 
-The tag-triggered workflow runs the build and `npm publish`. Requires an
-`NPM_TOKEN` secret in the repository settings.
+The tag-triggered workflow runs the build, the smoke test, and `npm publish`.
+Publishing needs one of:
+
+- an `NPM_TOKEN` repository secret holding an npm **automation** token (or a
+  granular token with two-factor bypass enabled) — a classic publish token is
+  rejected in CI with `EOTP`, or
+- [trusted publishing](https://docs.npmjs.com/trusted-publishers): configure this
+  repository as the package's trusted publisher on npmjs.com, and the workflow
+  authenticates over OIDC with no secret at all.
 
 ## Directory listings (Glama)
 
