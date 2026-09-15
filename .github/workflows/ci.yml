@@ -28,3 +28,22 @@ jobs:
           printf '%s\n' \
             '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"ci","version":"0"}}}' \
             | docker run -i --rm getcompetitive | grep -q '"serverInfo"'
+
+  tdqs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      # Deterministic half of the Tool Definition Quality Score (tdqs.dev):
+      # annotations, parameter documentation, and structural signals.
+      # `shadow-candidate` is excluded on purpose: it flags schema cost
+      # asymmetry for human review, and the spec folds Shadowing Risk into the
+      # score beside the rubric rather than into it.
+      - run: npx -y mcp-tdqs@0.2.0 lint --command "node dist/index.js" --format json --output tdqs.json
+      - run: |
+          test "$(jq '[.tools[].findings[] | select(.severity == "warning" and .rule != "shadow-candidate")] | length' tdqs.json)" = 0

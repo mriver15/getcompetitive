@@ -11,7 +11,7 @@ import {
   setStatus,
   type RegulationSet,
 } from '../regulations.js';
-import { ok, wrap } from '../result.js';
+import { READ_ONLY_ANNOTATIONS, ok, wrap } from '../result.js';
 
 function summarize(set: RegulationSet) {
   return {
@@ -26,6 +26,24 @@ function summarize(set: RegulationSet) {
     notes: set.notes,
   };
 }
+
+/**
+ * Fields `summarize()` always returns; shared by `list_regulations`' `sets[]`
+ * and (spread) `get_regulation`'s flat detail.
+ */
+const regulationSummaryOutput = {
+  id: z.string().describe('Regulation id, e.g. "m-a", "m-b", "m-c".'),
+  name: z.string().describe('Display name, e.g. "Regulation Set M-C".'),
+  game: z.string().describe('Game the set belongs to ("Pokémon Champions").'),
+  status: z
+    .enum(['past', 'current', 'upcoming'])
+    .describe('Status relative to today: "past", "current", or "upcoming".'),
+  start: z.string().describe('First day the set is in force, ISO 8601 (inclusive).'),
+  end: z.string().describe('Last day the set is in force, ISO 8601 (inclusive).'),
+  eligibleCount: z.number().describe('How many base species are on the legal roster.'),
+  megaCount: z.number().describe('How many base species on the roster may Mega Evolve.'),
+  notes: z.string().describe('Curator summary of the format and what it changed over the previous set.'),
+};
 
 function detail(set: RegulationSet) {
   return {
@@ -56,9 +74,24 @@ export function registerRegulationTools(server: McpServer) {
   server.registerTool(
     'list_regulations',
     {
+      title: 'List regulation sets',
       description:
-        'List official Pokémon Champions / VGC Regulation Sets with dates, current status, and roster size. The current set is the one active today.',
+        'List every Pokémon Champions / VGC Regulation Set with its id, dates, status, and roster size. Takes no arguments; status is relative to today and the active set is also returned as `currentSet` (null when none is). Use `get_regulation` for one set\'s full rules and roster, `check_legality` to validate a team, and `list_tiers` or `speed_tiers` for Smogon tiers instead. Read-only and offline over the bundled regulation data — no network, auth, or rate limits; returns `game`, `currentSet`, and one summary per set (id, name, status, start, end, eligibleCount, megaCount, notes).',
+      annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {},
+      outputSchema: {
+        game: z.string().describe('Game every listed set belongs to ("Pokémon Champions").'),
+        currentSet: z
+          .string()
+          .nullable()
+          .describe('Id of the one set whose status is "current" today, or null when no set is active.'),
+        sets: z
+          .array(z.object(regulationSummaryOutput))
+          .describe('One summary per bundled Regulation Set, in chronological order (M-A through M-C).'),
+        note: z
+          .string()
+          .describe('Standing note on how Regulation Sets work: the roster is seasonal and eligibility is by base species, so every form of a listed species is legal.'),
+      },
     },
     wrap(async () => {
       return ok({
@@ -73,9 +106,64 @@ export function registerRegulationTools(server: McpServer) {
   server.registerTool(
     'get_regulation',
     {
+      title: 'Get regulation set',
       description:
-        'Get the full detail for one Regulation Set: battle rules (double battles, timers, level), team rules (Species Clause, Item Clause, auto-level 50), the Mega Evolution rules + eligible Mega species, and the complete legal roster. Accepts "M-A", "Regulation Set M-C", "mc", etc.',
-      inputSchema: { regulation: z.string() },
+        'Get one Pokémon Champions / VGC Regulation Set in full: battle rules (level 50 doubles, timers, bring 4 of 6), team clauses (Species, Item, auto-level 50), Mega Evolution rules and eligible Mega species, and the whole legal base-species roster. Accepts the id or name case- and punctuation-insensitively ("M-A", "m-a", "mc", "Regulation Set M-C"); an unknown id is an isError listing the valid names. Use `list_regulations` to discover ids and `check_legality` to test a team. Read-only and offline; returns dates, status, counts, clauses, source, and the full roster (large).',
+      annotations: READ_ONLY_ANNOTATIONS,
+      inputSchema: {
+        regulation: z
+          .string()
+          .describe(
+            'Regulation Set id or name, matched case- and punctuation-insensitively: "M-A", "m-a", "mc", and "Regulation Set M-C" all resolve to the same set.',
+          ),
+      },
+      outputSchema: {
+        ...regulationSummaryOutput,
+        battleType: z.string().describe('Battle format this set is played in ("Double Battles").'),
+        level: z.number().describe('Level every Pokémon is set to (50).'),
+        bringPick: z
+          .string()
+          .describe('Team preview rule ("4 of 6"): register six Pokémon, pick four for each match.'),
+        timers: z
+          .object({
+            gameMinutes: z.number().describe('Total game clock, in minutes.'),
+            playerMinutes: z.number().describe('Each player\u2019s clock, in minutes.'),
+            moveSeconds: z.number().describe('Seconds allowed per move.'),
+            previewSeconds: z.number().describe('Seconds allowed for team preview.'),
+          })
+          .describe('Match clock limits.'),
+        rounds: z
+          .string()
+          .describe('Tournament round structure, e.g. "BO1/BO3 Swiss, BO3 top cut".'),
+        clauses: z
+          .object({
+            speciesClause: z
+              .boolean()
+              .describe('True when no two team members may share a National Pokédex number.'),
+            itemClause: z.boolean().describe('True when no two team members may hold the same item.'),
+            autoLevel50: z
+              .boolean()
+              .describe('True when Pokémon above or below level 50 are auto-levelled to 50.'),
+            anyMoveAbility: z
+              .boolean()
+              .describe('True when any move or Ability obtainable through normal gameplay is allowed, including Hidden Abilities.'),
+          })
+          .describe('Team-construction clauses in force for this set.'),
+        megaEvolution: z
+          .object({
+            allowed: z.boolean().describe('Whether Mega Evolution is legal in this set.'),
+            perBattle: z.number().describe('How many times a player may Mega Evolve per battle (1).'),
+            species: z
+              .array(z.string())
+              .describe('Base species allowed to Mega Evolve; every form of each is covered.'),
+          })
+          .describe('Mega Evolution rules.'),
+        eligibleSpecies: z
+          .array(z.string())
+          .describe('The full legal base-species roster (large); every form of a listed species is legal.'),
+        source: z.string().describe('URL of the source the rosters were taken from.'),
+        sourceAsOf: z.string().describe('ISO date the rosters were last refreshed.'),
+      },
     },
     wrap(async (args: { regulation: string }) => {
       const set = getRegulationSet(args.regulation);
@@ -91,20 +179,110 @@ export function registerRegulationTools(server: McpServer) {
   server.registerTool(
     'check_legality',
     {
+      title: 'Check team legality',
       description:
-        'Check a team against a Pokémon Champions Regulation Set. Takes a list of up to 6 {species, item, moves} entries and reports: illegal species (not in the set roster), Species Clause violations (same National Dex number), Item Clause violations (duplicate items), illegal moves (not learnable by that species), team size, and which members may Mega Evolve (remember: only one Mega per battle).',
+        'Validate up to 6 team members against a Pokémon Champions / VGC Regulation Set, reporting illegal or unknown species, duplicate National Pokédex numbers (Species Clause), duplicate items (Item Clause), unlearnable moves, team size (must be exactly 6), and who may Mega Evolve (one per battle). Species resolve case-insensitively to base species (any form of a legal base qualifies) and moves are checked against `get_learnset`\'s data. Use `get_regulation` for the roster; unknown ids return an isError listing them. Read-only and offline; returns `valid`, `violations`, and per-member checks.',
+      annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {
-        regulation: z.string(),
+        regulation: z
+          .string()
+          .describe(
+            'Regulation Set id or name, matched case- and punctuation-insensitively: "M-A", "m-a", "mc", and "Regulation Set M-C" all resolve to the same set.',
+          ),
         team: z
           .array(
             z.object({
-              species: z.string(),
-              item: z.string().optional(),
-              moves: z.array(z.string()).optional(),
+              species: z
+                .string()
+                .describe(
+                  'Species name in any form; resolved case-insensitively and matched to the set roster by base species, so alternate forms of an eligible species pass.',
+                ),
+              item: z
+                .string()
+                .optional()
+                .describe(
+                  'Held item; a duplicate across the team is an Item Clause violation and an unknown item is reported as a violation.',
+                ),
+              moves: z
+                .array(z.string())
+                .optional()
+                .describe(
+                  'Moves to verify against the form and base-species learnsets; each is reported with legal true/false and, when illegal, a reason.',
+                ),
             }),
           )
           .min(1)
-          .max(6),
+          .max(6)
+          .describe(
+            'Team members, 1-6 of them; a VGC Battle Team must be exactly 6, so any other length adds a team-size violation.',
+          ),
+      },
+      outputSchema: {
+        regulation: z
+          .string()
+          .describe('Display name of the set the team was checked against, e.g. "Regulation Set M-C".'),
+        status: z
+          .enum(['past', 'current', 'upcoming'])
+          .describe('That set\u2019s status relative to today.'),
+        teamSize: z.number().describe('How many members were supplied (1-6).'),
+        valid: z
+          .boolean()
+          .describe('True only when `violations` is empty; false when any member is illegal or unknown, a clause is broken, or the team is not exactly 6.'),
+        violations: z
+          .array(z.string())
+          .describe('Every violation found, as human-readable text (illegal/unknown species, Species Clause, unknown item, Item Clause, illegal/unknown moves, team size); empty when the team is legal.'),
+        members: z
+          .array(
+            z.object({
+              species: z
+                .string()
+                .describe('Resolved species name, or the name as supplied when the species is unknown.'),
+              baseSpecies: z
+                .string()
+                .optional()
+                .describe('The base species the roster and Species Clause checks used (eligibility is by National Pokédex number); absent when the species is unknown.'),
+              item: z
+                .string()
+                .optional()
+                .describe('Held item exactly as supplied; absent when the member had none.'),
+              itemValid: z
+                .boolean()
+                .optional()
+                .describe('Whether the supplied item is a known item; absent when the member had no item.'),
+              legal: z
+                .boolean()
+                .describe('True when the species exists and its base species is on this set\u2019s roster.'),
+              megaCapable: z
+                .boolean()
+                .describe('True when this member\u2019s base species may Mega Evolve in this set (false for unknown species).'),
+              moves: z
+                .array(
+                  z.object({
+                    move: z
+                      .string()
+                      .describe('Resolved move name, or the name as supplied when the move is unknown.'),
+                    legal: z
+                      .boolean()
+                      .describe('True when the move is in either the form\u2019s or the base species\u2019 learnset.'),
+                    note: z
+                      .string()
+                      .optional()
+                      .describe('Why the move failed ("unknown move" or "not in learnset"); absent for legal moves.'),
+                  }),
+                )
+                .optional()
+                .describe('One entry per supplied move, in order; present only when the member listed moves and its species was known.'),
+            }),
+          )
+          .describe('One entry per supplied team member, in the order supplied.'),
+        mega: z
+          .object({
+            capable: z
+              .array(z.string())
+              .describe('Species on this team that may Mega Evolve; empty when none can.'),
+            note: z.string().describe('Reminder that a player may Mega Evolve only once per battle.'),
+          })
+          .describe('Mega Evolution summary for the checked team.'),
       },
     },
     wrap(async (args: { regulation: string; team: { species: string; item?: string; moves?: string[] }[] }) => {

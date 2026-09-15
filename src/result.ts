@@ -4,10 +4,19 @@
  */
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
+/**
+ * Tool results carry the payload twice: as pretty-printed JSON text (unchanged,
+ * the durable contract) and as `structuredContent` for clients that read it,
+ * which is also what the declared output schemas validate against. Error results
+ * are exempt from output validation by the SDK, so `err` stays text-only.
+ */
 export function ok(data: unknown): CallToolResult {
-  return {
-    content: [{ type: 'text', text: typeof data === 'string' ? data : JSON.stringify(data, null, 2) }],
-  };
+  const text = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+  const result: CallToolResult = { content: [{ type: 'text', text }] };
+  if (typeof data === 'object' && data !== null && !Array.isArray(data)) {
+    result.structuredContent = data as Record<string, unknown>;
+  }
+  return result;
 }
 
 export function err(message: string): CallToolResult {
@@ -24,6 +33,19 @@ export function wrap<A>(handler: (args: A) => CallToolResult | Promise<CallToolR
     }
   };
 }
+
+/**
+ * Every tool on this server is the same kind of operation: a pure read over the
+ * bundled Showdown dataset and the curated regulation data. No network, no auth,
+ * no state, and the same arguments always produce the same result — so the
+ * annotations are identical across the surface and live here once.
+ */
+export const READ_ONLY_ANNOTATIONS = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: false,
+} as const;
 
 /** Resolve a name against a Dex table; throw a helpful error listing near-matches. */
 export function requireExists<T extends { exists: boolean; name: string }>(

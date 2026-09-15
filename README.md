@@ -13,6 +13,7 @@ teams — including **Pokémon Champions / VGC** regulations.
 ## What it provides
 
 - **25 tools** across five domains: data, team building, meta (curated), battle mechanics, and official regulation sets
+- **Structured, agent-first definitions** — every tool declares MCP annotations and an output schema, returns `structuredContent` alongside JSON text, and documents all of its parameters; the deterministic half of the [TDQS](https://tdqs.dev) checklist is linted in CI
 - Full **Pokémon Showdown** competitive dataset — species, alternate forms, stats, moves, items, abilities, natures, learnsets, types, tiers
 - **Battle math** from Smogon's calculator — stat calculation and full damage calculation (weather, terrain, boosts, items, Tera)
 - **Official Regulation Sets** (M-A → M-C) with seasonal legal rosters and team legality checking

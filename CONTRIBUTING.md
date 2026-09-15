@@ -44,6 +44,28 @@ npm test          # builds + drives every tool over real MCP stdio
 - Tools return JSON text; user-facing errors are returned as `isError` results
   rather than thrown past the handler (see the `wrap` helper in `src/result.ts`).
 
+### Tool definitions
+
+Tool definitions are the agent's only interface to this server, so they are held
+to the [TDQS](https://tdqs.dev) checklist and linted in CI:
+
+- `title` (a human label longer than the tool name) and
+  `annotations: READ_ONLY_ANNOTATIONS` (imported from `src/result.ts`).
+- `.describe(...)` on **every** top-level parameter — the deterministic score
+  signal only counts schema descriptions, and the description text is not a
+  substitute for them.
+- A description that states, in this order: what the tool does (verb + resource
+  + scope); which sibling tools to use instead and when; parameter semantics the
+  schema cannot carry (accepted formats, ranges, defaults, interactions); and
+  behaviour the annotations cannot carry (determinism, offline data, error
+  results). Aim for 45–90 words, front-loaded, and never restate the schema.
+- Never claim behaviour the handler does not implement, and never let a
+  description contradict its annotations.
+
+`npx mcp-tdqs@0.2.0 lint --command "node dist/index.js"` must report no warnings
+other than `shadow-candidate`, which flags schema cost asymmetry for review —
+the CI `tdqs` job enforces exactly that.
+
 ## Updating regulation data
 
 Regulation Sets change every ~2–3 months. To refresh:

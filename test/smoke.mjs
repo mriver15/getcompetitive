@@ -105,6 +105,32 @@ const calls = [
       { species: 'Gholdengo', item: 'Leftovers', moves: ['Make It Rain', 'Spore'] },
     ],
   }],
+  // Branch coverage for the declared output schemas: every optional payload
+  // block (no-argument chart, missing comparison, single-goal EV solves,
+  // filtered tier list, threat-list index, team without a regulation) is
+  // exercised, and the SDK validates each result against the tool's schema.
+  ['type_chart', {}],
+  ['speed_check', { species: 'Garchomp', level: 50, nature: 'Jolly', evs: { spe: 252 } }],
+  ['optimize_evs', {
+    species: 'Garchomp', level: 50, nature: 'Impish',
+    survive: { attacker: { species: 'Incineroar', level: 50, ability: 'Intimidate', evs: { atk: 252 } }, move: 'Flare Blitz' },
+  }],
+  ['optimize_evs', { species: 'Garchomp', level: 50, outspeed: { speed: 150 } }],
+  ['list_tiers', { league: 'doubles', tier: 'duu' }],
+  ['list_threats', {}],
+  ['get_set', { species: 'Incineroar', regulation: 'm-c' }],
+  ['analyze_team', {
+    team: [
+      { species: 'Garchomp', moves: ['Earthquake'] },
+      { species: 'Gholdengo', moves: ['Make It Rain'] },
+    ],
+  }],
+  ['calculate_damage', {
+    attacker: { species: 'Garchomp', level: 50, nature: 'Jolly', evs: { atk: 252 } },
+    defender: { species: 'Corviknight', level: 50, nature: 'Impish', evs: { hp: 252, def: 252 } },
+    move: 'Dragon Claw',
+    field: { gameType: 'Doubles', weather: 'Rain', terrain: 'Electric', attackerSide: { isReflect: true }, defenderSide: { isLightScreen: true } },
+  }],
 ];
 
 let failed = 0;

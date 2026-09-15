@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Tool definitions rewritten against the [TDQS](https://tdqs.dev) checklist:
+  every tool now declares MCP annotations and a human title, documents all of its
+  top-level parameters in the schema, and states its purpose, the sibling tools
+  to use instead, parameter semantics, and behaviour beyond the annotations.
+- The generation input schema is shared from `src/tools/schemas.ts` rather than
+  redefined in each tool module.
+- CI gains a `tdqs` job that fails on any TDQS lint warning other than the
+  structural `shadow-candidate` signal.
+
+### Added
+
+- Documented `outputSchema` on every tool, and `structuredContent` on every
+  successful result alongside the existing JSON text. Error results are
+  unchanged. The smoke test now exercises every optional payload shape, since
+  the SDK validates results against the declared schema.
+
 ## [1.0.0] - 2026-09-15
 
 ### Added

@@ -5,22 +5,64 @@ import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { normalizeGen, getDex, finalStat, type GenerationNum } from '../dex.js';
 import { getArchetype, listArchetypes, ARCHETYPES, type ArchetypeFormat } from '../archetypes.js';
-import { ok, wrap } from '../result.js';
-
-const genSchema = z.number().int().min(1).max(9).default(9);
+import { ok, wrap, READ_ONLY_ANNOTATIONS } from '../result.js';
+import { genSchema } from './schemas.js';
 
 function usableTier(s: { isCosmeticForme: boolean; isNonstandard: string | null; battleOnly?: string | string[] }) {
   return !s.isCosmeticForme && !s.isNonstandard && !s.battleOnly;
 }
 
+/**
+ * Fields every archetype carries, in both the list summary and the full entry;
+ * the two differ only in how `members` is shaped, so the shared part is written
+ * once and the member field is added at each use site.
+ */
+const archetypeFields = {
+  id: z.string().describe('Stable slug id, e.g. "hyper-offense"; accepted by `get_archetype`.'),
+  name: z.string().describe('Display name, e.g. "Hyper Offense"; also accepted by `get_archetype`.'),
+  format: z
+    .enum(['singles', 'doubles', 'both'])
+    .describe('Format the archetype is written for; "both" means it applies to either.'),
+  playstyle: z
+    .enum(['offense', 'defense', 'balance', 'weather', 'room', 'gimmick'])
+    .describe('Broad playstyle family the archetype belongs to.'),
+  summary: z.string().describe('One-sentence description of the game plan.'),
+  description: z.string().describe('Full prose description of how the archetype wins.'),
+  keyRoles: z.array(z.string()).describe('Roles a build of this archetype must fill, e.g. "Hazard setter".'),
+  strengths: z.array(z.string()).describe('What the archetype does well.'),
+  weaknesses: z.array(z.string()).describe('Where the archetype is vulnerable.'),
+  counters: z.array(z.string()).describe('How opponents beat it.'),
+  tips: z.array(z.string()).describe('Teambuilding advice for running it.'),
+};
+
 export function registerTeamTools(server: McpServer) {
   server.registerTool(
     'list_archetypes',
     {
+      title: 'List team archetypes',
       description:
-        'List recognized competitive team-building archetypes (Hyper Offense, Rain, Stall, Trick Room, etc.) with summaries, playstyle, key roles, and typical members. Optionally filter by format (singles/doubles/both).',
+        'List the curated team-building archetypes (Hyper Offense, Rain, Stall, Trick Room, …) as summaries carrying playstyle, format, key roles, and typical member species, with a total count. Use `get_archetype` for one archetype\'s full detail and `analyze_team` to evaluate an actual team. `format` narrows to `singles` or `doubles` and always keeps archetypes tagged `both`; omit it for every archetype. Editorial guidance, not usage statistics — for legal species and rosters use `list_tiers`, `get_regulation`, or `check_legality`. Read-only and offline.',
+      annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {
-        format: z.enum(['singles', 'doubles', 'both']).optional(),
+        format: z
+          .enum(['singles', 'doubles', 'both'])
+          .optional()
+          .describe(
+            'Format to filter by: "singles" or "doubles" only, "both" for archetypes tagged both. Omit for every archetype.',
+          ),
+      },
+      outputSchema: {
+        count: z.number().int().describe('Number of archetypes returned, i.e. the length of `archetypes`.'),
+        archetypes: z
+          .array(
+            z.object({
+              ...archetypeFields,
+              members: z
+                .array(z.string())
+                .describe('Typical member species names, e.g. ["Pelipper", "Barraskewda"]; roles are not included here.'),
+            }),
+          )
+          .describe('Summaries of every curated archetype matching `format`, in the order they are defined.'),
       },
     },
     wrap(async (args: { format?: ArchetypeFormat }) => {
@@ -35,9 +77,26 @@ export function registerTeamTools(server: McpServer) {
   server.registerTool(
     'get_archetype',
     {
+      title: 'Get archetype detail',
       description:
-        'Get the full detail for one team-building archetype: description, key roles, typical members with roles, strengths, weaknesses, counters, and teambuilding tips.',
-      inputSchema: { name: z.string() },
+        'Get one archetype\'s full entry: description, key roles, typical members with their assigned roles, strengths, weaknesses, counters, and teambuilding tips. Call `list_archetypes` first when the name is uncertain, and `analyze_team` when you have a real team to evaluate instead of a template to read. `name` accepts either the id or the display name, case-insensitively ("trick-room", "Trick Room"); an unknown name is an isError listing every available archetype. Read-only and offline over the curated archetype data — no network or auth.',
+      annotations: READ_ONLY_ANNOTATIONS,
+      inputSchema: {
+        name: z
+          .string()
+          .describe('Archetype id or display name, case-insensitive, e.g. "hyper-offense" or "Trick Room".'),
+      },
+      outputSchema: {
+        ...archetypeFields,
+        members: z
+          .array(
+            z.object({
+              species: z.string().describe('Typical member species name, e.g. "Great Tusk".'),
+              role: z.string().describe('The job that member does in this archetype, e.g. "Physical wall + Rapid Spin remover".'),
+            }),
+          )
+          .describe('Typical members paired with the role each fills — fuller than `list_archetypes`, which lists species only.'),
+      },
     },
     wrap(async (args: { name: string }) => {
       const a = getArchetype(args.name);
@@ -51,12 +110,35 @@ export function registerTeamTools(server: McpServer) {
   server.registerTool(
     'list_tiers',
     {
+      title: 'List tiers and their species',
       description:
-        'List every legal Pokemon grouped by competitive tier (Uber/Ubers, OU, UU, RU, NU, PU, NFE, LC, etc.), so you can see what is legal in a given tier. Choose the singles (Smogon OU-based) or doubles (VGC-based) tier list. Optionally restrict to a single tier name.',
+        'List species names grouped by competitive tier — Smogon tiers (Uber, OU, UU, RU, NU, PU, NFE, LC, …) for `singles`, VGC tiers for `doubles` — answering "what is legal in tier X". `tier` filters to one exact tier name, case-insensitive; omit it for every tier, returned as tier → {count, pokemon[]} ordered strongest to weakest. Cosmetic, nonstandard, battle-only, and CAP/Unreleased entries are omitted. These are fan tiers, not Champions regulation rosters: use `get_regulation` or `check_legality` for those, and `speed_tiers` for Speed numbers. Read-only and offline.',
+      annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {
-        league: z.enum(['singles', 'doubles']).default('singles'),
-        tier: z.string().optional(),
+        league: z
+          .enum(['singles', 'doubles'])
+          .default('singles')
+          .describe('Tier list to group by: "singles" uses Smogon singles tiers, "doubles" uses VGC tiers (default "singles").'),
+        tier: z
+          .string()
+          .optional()
+          .describe('Exact tier name to restrict output to, case-insensitive, e.g. "OU" or "UU". Omit for every tier.'),
         generation: genSchema,
+      },
+      outputSchema: {
+        generation: z.number().int().describe('Generation whose data was read, after normalising `generation`.'),
+        league: z.enum(['singles', 'doubles']).describe('Which tier list the grouping came from — Smogon singles or VGC doubles.'),
+        tiers: z
+          .record(
+            z.string(),
+            z.object({
+              count: z.number().int().describe('How many species the tier holds.'),
+              pokemon: z.array(z.string()).describe('Every species name in the tier, sorted alphabetically.'),
+            }),
+          )
+          .describe(
+            'Map of tier name (e.g. "OU", "UU", "DUU") to its roster, ordered strongest tier first. Holds every tier present in the chosen league and generation, or just the requested `tier` when one was supplied; an empty object means no tier matched.',
+          ),
       },
     },
     wrap(async (args: { league: 'singles' | 'doubles'; tier?: string; generation: number }) => {
@@ -85,13 +167,43 @@ export function registerTeamTools(server: McpServer) {
   server.registerTool(
     'speed_tiers',
     {
+      title: 'Compute speed tiers',
       description:
-        'Compute the Speed stat of every Pokemon in a given tier at common investment levels (max positive, max neutral, uninvested), sorted fastest to slowest. Essential for deciding whether your set outspeeds a specific threat. Optionally filter by name substring.',
+        'Compute Speed numbers for every species in one tier at three investment levels: base Speed, max (252 EV, +Spe nature), 252 neutral, and uninvested (31 IVs), sorted fastest to slowest — use it to see whether a set outspeeds a threat. `tier` must match a name from `list_tiers` for league `singles` exactly (case-insensitive, "OU"); anything else is an isError pointing at `list_tiers`. `level` defaults to 50 and `query` substring-filters species. Use `list_tiers` for tier rosters and `speed_check` for one Pokémon against the whole roster. Read-only and offline.',
+      annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {
-        tier: z.string(),
-        level: z.number().int().min(1).max(100).default(50),
-        query: z.string().optional(),
+        tier: z
+          .string()
+          .describe('Exact singles tier name as `list_tiers` reports it, case-insensitive, e.g. "OU", "UU", "PU".'),
+        level: z
+          .number()
+          .int()
+          .min(1)
+          .max(100)
+          .default(50)
+          .describe('Level at which Speed is computed, 1-100 (default 50, the standard competitive level).'),
+        query: z
+          .string()
+          .optional()
+          .describe('Case-insensitive substring to keep only matching species names, e.g. "rotom". Omit for the whole tier.'),
         generation: genSchema,
+      },
+      outputSchema: {
+        generation: z.number().int().describe('Generation whose data was read, after normalising `generation`.'),
+        tier: z.string().describe('Tier name as it was requested; matches a `list_tiers` singles tier name.'),
+        level: z.number().int().describe('Level the Speed numbers were computed at, 1-100.'),
+        count: z.number().int().describe('Number of species rows returned, i.e. the length of `speedTiers`.'),
+        speedTiers: z
+          .array(
+            z.object({
+              species: z.string().describe('Species name.'),
+              baseSpe: z.number().int().describe('Base Speed stat, before nature, EVs, or level.'),
+              max: z.number().int().describe('Speed at 252 Speed EVs, a +Spe nature (Jolly), and 31 IVs.'),
+              neutral252: z.number().int().describe('Speed at 252 Speed EVs, a neutral nature, and 31 IVs.'),
+              uninvested: z.number().int().describe('Speed with no Speed EVs, a neutral nature, and 31 IVs.'),
+            }),
+          )
+          .describe('One row per species in the tier — and matching `query` when given — sorted fastest `max` to slowest.'),
       },
     },
     wrap(async (args: { tier: string; level: number; query?: string; generation: number }) => {
