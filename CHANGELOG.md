@@ -7,14 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **The threat list is now usage-derived.** `list_threats` and `get_set` no
+  longer serve editorial sets: `scripts/build-threats.mjs` ranks the legal
+  roster by measured usage over Limitless VGC tournament teams, resolves each
+  species' most-played set, takes EV spreads from the in-game ranked ladder, and
+  cross-checks the ordering against Pikalytics. Every threat carries its `rank`
+  and `usage`, and each list reports the `sample`, `sources`, and
+  `corroboration` behind it.
+
 ### Changed
 
+- **Breaking:** `list_threats` and `get_set` output. Threats gain `rank`,
+  `usage`, and `form` (the form a set is played as when it is not the default
+  one, e.g. `Arcanine-Hisui`), and drop `teraType` — Pokémon Champions has no
+  Terastallization, so the field could never be populated. `tier` is a usage
+  band (S = top 5, A = next 7, B = the rest) rather than an editorial judgement,
+  and `role` is read off the set's ability and moves. Mega sets name the Mega
+  form in Showdown spelling (`Salamence-Mega`) and report the post-Mega ability
+  in `megaAbility`. Names the list cannot resolve are unchanged, but `get_set`
+  now also matches forms, so `Indeedee-F` finds the Indeedee set.
 - **Breaking:** tool names are now uniformly `verb_noun`. Five outliers were
   renamed to match the pattern the rest of the surface already followed:
   `search` → `search_dex`, `type_chart` → `get_type_matchup`, `calc_matchups` →
   `calculate_matchups`, `speed_check` → `check_speed`, `speed_tiers` →
   `list_speed_tiers`. Descriptions, cross-references, and the README use the new
   names; client allow-lists that pin tool names need updating.
+
+### Removed
+
+- `scripts/threat-scaffold.mjs`. Threat sets are generated rather than
+  hand-authored, so `scripts/build-threats.mjs` replaces it.
 
 ## [1.1.1] - 2026-09-15
 

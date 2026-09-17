@@ -50,6 +50,8 @@ const calls = [
   ['get_archetype', { name: 'rain' }],
   ['list_threats', { regulation: 'm-c' }],
   ['get_set', { species: 'Garchomp' }],
+  // Form names resolve to their base species' set (Indeedee-F is the played form).
+  ['get_set', { species: 'Indeedee-F' }],
   ['list_regulations', {}],
   ['get_regulation', { regulation: 'M-C' }],
   ['check_legality', {

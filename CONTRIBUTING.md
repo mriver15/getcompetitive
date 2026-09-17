@@ -21,8 +21,10 @@ npm test          # builds + drives every tool over real MCP stdio
 | `src/` | Server entry, shared dex/calc layer, and tool modules |
 | `src/regulations.data.ts` | Generated regulation rosters — **do not edit by hand** |
 | `src/regulations.ts` | Regulation metadata (dates, rules, notes) — curated |
+| `src/threats.data.ts` | Generated usage-derived threat list — **do not edit by hand** |
+| `src/threats.ts` | Types and accessors over the generated threat list |
 | `scripts/extract-regs.mjs` | Regenerates `src/regulations.data.ts` from Bulbapedia |
-| `scripts/threat-scaffold.mjs` | Prints the Mega roster + emits a stub threat list for a regulation |
+| `scripts/build-threats.mjs` | Regenerates `src/threats.data.ts` from live usage data |
 | `test/smoke.mjs` | End-to-end smoke test (spawns the real server over stdio) |
 
 ## Scripts
@@ -79,16 +81,26 @@ then edit the per-set metadata (name, `start`/`end` dates, `notes`) in
 
 ## Updating the threat list / standard sets
 
-The curated threat list (`src/threats.ts`) is editorial, keyed by regulation.
-When a new set drops:
+The threat list (`src/threats.data.ts`) is generated and usage-derived — never
+hand-edited. `scripts/build-threats.mjs` ranks the legal roster by measured
+usage over tournament teams, resolves each species' most-played set, cross-checks
+the ordering against a second source, and writes the file. When a new set drops:
 
 ```bash
-node scripts/threat-scaffold.mjs m-d   # prints the Mega roster + a stub
+node scripts/build-threats.mjs m-d    # writes src/threats.data.ts
 ```
 
-then paste the stub into `src/threats.ts`, author threats (verify each set's
-moves/abilities against the dex — `npm test` plus the smoke tool coverage), and
-update `src/index.ts` if new tools are involved. Keep `sourceAsOf` current.
+Options: `--top=N` for the list length (default 24) and `--min-players=N` for the
+tournament size floor (default 25). Check the printed ranking and the
+corroboration line before committing — a source changing shape fails loudly
+rather than writing a partial list. The types and accessors live in
+`src/threats.ts`; `get_set` and `list_threats` are the tools that read them.
+
+Provenance: usage and sets come from Limitless TCG online tournaments (read
+through MunchStats' aggregator, which mirrors them and adds regulation tags),
+EV spreads from MunchStats' in-game ladder, and the ordering is cross-checked
+against Pikalytics. The generator's header records the raw Limitless API to fall
+back to if the aggregator changes.
 
 ## Releasing
 
