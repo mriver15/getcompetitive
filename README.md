@@ -12,7 +12,7 @@ teams — including **Pokémon Champions / VGC** regulations.
 
 ## What it provides
 
-- **25 tools** across five domains: data, team building, meta (curated), battle mechanics, and official regulation sets
+- **25 tools** across five domains: data, team building, meta (usage-derived), battle mechanics, and official regulation sets
 - **Structured, agent-first definitions** — every tool declares MCP annotations and an output schema, returns `structuredContent` alongside JSON text, and documents all of its parameters; the deterministic half of the [TDQS](https://tdqs.dev) checklist is linted in CI
 - Full **Pokémon Showdown** competitive dataset — species, alternate forms, stats, moves, items, abilities, natures, learnsets, types, tiers
 - **Battle math** from Smogon's calculator — stat calculation and full damage calculation (weather, terrain, boosts, items, Tera)
@@ -47,11 +47,11 @@ Built on [`@pkmn/dex`](https://github.com/pkmn/EPOKe) (Showdown data) and
 | `list_speed_tiers` | Speed of every Pokemon in a tier at common investment levels, sorted |
 | `analyze_team` | Team synergy: stacked defensive weaknesses, offensive coverage gaps, speed placement, and a heuristic 0-100 score |
 
-### Meta (curated)
+### Meta (usage-derived)
 | Tool | Purpose |
 | --- | --- |
-| `list_threats` | Curated meta threat list for a regulation (role, tier, standard set) |
-| `get_set` | Standard set for a species (item, ability, nature, EVs, 4 moves, Tera) |
+| `list_threats` | Most-used Pokemon of a regulation, ranked by measured usage (role, tier, usage share, standard set) with the sample and sources behind it |
+| `get_set` | Most-played set for a species (item, ability, nature, EVs, 4 moves), with the Mega form and ability where relevant |
 
 ### Regulations (Pokémon Champions / VGC)
 | Tool | Purpose |
@@ -150,9 +150,10 @@ npm test   # builds and drives every tool over real MCP stdio
 
 The Showdown dataset and battle math track `@pkmn/dex` / `@smogon/calc`. Official
 **Regulation Sets change seasonally**; the legal rosters are regenerated with
-`node scripts/extract-regs.mjs`, and the curated **threat list / standard sets**
-(`src/threats.ts`) are keyed by regulation — scaffold a new one with
-`node scripts/threat-scaffold.mjs <regulation>`. See [CONTRIBUTING](CONTRIBUTING.md).
+`node scripts/extract-regs.mjs`, and the **threat list / standard sets**
+(`src/threats.ts`) are generated from live usage by
+`node scripts/build-threats.mjs <regulation>`. Both generated data files are
+committed, so the tools stay offline at runtime. See [CONTRIBUTING](CONTRIBUTING.md).
 
 ## Contributing
 
@@ -162,4 +163,7 @@ conventions, and [CODE_OF_CONDUCT](CODE_OF_CONDUCT.md) for community standards.
 ## License
 
 [MIT](LICENSE). Data is sourced from the Pokémon Showdown ecosystem and
-Bulbapedia; Pokémon is © Nintendo / Game Freak.
+Bulbapedia; usage statistics come from [Limitless TCG](https://play.limitlesstcg.com/)
+tournaments and the in-game ranked ladder as aggregated by
+[MunchStats](https://www.munchstats.com/), cross-checked against
+[Pikalytics](https://www.pikalytics.com/). Pokémon is © Nintendo / Game Freak.
