@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking:** tool names are now uniformly `verb_noun`. Five outliers were
+  renamed to match the pattern the rest of the surface already followed:
+  `search` → `search_dex`, `type_chart` → `get_type_matchup`, `calc_matchups` →
+  `calculate_matchups`, `speed_check` → `check_speed`, `speed_tiers` →
+  `list_speed_tiers`. Descriptions, cross-references, and the README use the new
+  names; client allow-lists that pin tool names need updating.
+
 ## [1.1.1] - 2026-09-15
 
 ### Changed

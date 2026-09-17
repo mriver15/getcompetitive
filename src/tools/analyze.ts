@@ -15,7 +15,7 @@ export function registerAnalyzeTools(server: McpServer) {
     {
       title: 'Analyze team synergy',
       description:
-        'Analyze a whole team\u2019s type synergy: per-type weak, resist, and immune counts with the types at risk, super-effective coverage from STAB, Tera type and supplied moves, speed placement, and a transparent 0-100 heuristic score \u2014 a quick signal, not a metagame rating. Use `type_chart` or `get_type` for one matchup. Each entry is a `species` with optional `teraType` and `moves`; unknown moves are collected into `unknownMoves`, unknown species or Tera types error, and `regulation` (e.g. "m-c") adds legal threats that outspeed your fastest member. Read-only and offline over the bundled dataset.',
+        'Analyze a whole team\u2019s type synergy: per-type weak, resist, and immune counts with the types at risk, super-effective coverage from STAB, Tera type and supplied moves, speed placement, and a transparent 0-100 heuristic score \u2014 a quick signal, not a metagame rating. Use `get_type_matchup` or `get_type` for one matchup. Each entry is a `species` with optional `teraType` and `moves`; unknown moves are collected into `unknownMoves`, unknown species or Tera types error, and `regulation` (e.g. "m-c") adds legal threats that outspeed your fastest member. Read-only and offline over the bundled dataset.',
       annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {
         team: z

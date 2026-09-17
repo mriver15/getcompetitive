@@ -112,7 +112,7 @@ export function registerTeamTools(server: McpServer) {
     {
       title: 'List tiers and their species',
       description:
-        'List species names grouped by competitive tier — Smogon tiers (Uber, OU, UU, RU, NU, PU, NFE, LC, …) for `singles`, VGC tiers for `doubles` — answering "what is legal in tier X". `tier` filters to one exact tier name, case-insensitive; omit it for every tier, returned as tier → {count, pokemon[]} ordered strongest to weakest. Cosmetic, nonstandard, battle-only, and CAP/Unreleased entries are omitted. These are fan tiers, not Champions regulation rosters: use `get_regulation` or `check_legality` for those, and `speed_tiers` for Speed numbers. Read-only and offline.',
+        'List species names grouped by competitive tier — Smogon tiers (Uber, OU, UU, RU, NU, PU, NFE, LC, …) for `singles`, VGC tiers for `doubles` — answering "what is legal in tier X". `tier` filters to one exact tier name, case-insensitive; omit it for every tier, returned as tier → {count, pokemon[]} ordered strongest to weakest. Cosmetic, nonstandard, battle-only, and CAP/Unreleased entries are omitted. These are fan tiers, not Champions regulation rosters: use `get_regulation` or `check_legality` for those, and `list_speed_tiers` for Speed numbers. Read-only and offline.',
       annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {
         league: z
@@ -165,11 +165,11 @@ export function registerTeamTools(server: McpServer) {
   );
 
   server.registerTool(
-    'speed_tiers',
+    'list_speed_tiers',
     {
       title: 'Compute speed tiers',
       description:
-        'Compute Speed numbers for every species in one tier at three investment levels: base Speed, max (252 EV, +Spe nature), 252 neutral, and uninvested (31 IVs), sorted fastest to slowest — use it to see whether a set outspeeds a threat. `tier` must match a name from `list_tiers` for league `singles` exactly (case-insensitive, "OU"); anything else is an isError pointing at `list_tiers`. `level` defaults to 50 and `query` substring-filters species. Use `list_tiers` for tier rosters and `speed_check` for one Pokémon against the whole roster. Read-only and offline.',
+        'Compute Speed numbers for every species in one tier at three investment levels: base Speed, max (252 EV, +Spe nature), 252 neutral, and uninvested (31 IVs), sorted fastest to slowest — use it to see whether a set outspeeds a threat. `tier` must match a name from `list_tiers` for league `singles` exactly (case-insensitive, "OU"); anything else is an isError pointing at `list_tiers`. `level` defaults to 50 and `query` substring-filters species. Use `list_tiers` for tier rosters and `check_speed` for one Pokémon against the whole roster. Read-only and offline.',
       annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {
         tier: z
