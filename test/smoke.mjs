@@ -157,6 +157,54 @@ for (const [name, args] of [
   if (!isErr) failed++;
 }
 
+// Evolution-line legality. A move a pre-evolution learns (an egg move included)
+// is legal on the evolved form, while a different form of the same National
+// Pokédex number must not leak its pool in. Getting this wrong in either
+// direction has bitten before: too narrow rejected Rillaboom's Fake Out and
+// Arcanine-Hisui's Head Smash, too wide accepted Johto Sneasel's Surf on
+// Sneasler and broke Charizard-Mega-Y's prevo chain.
+async function legalMoves(species, moves) {
+  const res = await client.callTool({
+    name: 'check_legality',
+    arguments: {
+      regulation: 'm-c',
+      team: [species, 'Garchomp', 'Gholdengo', 'Incineroar', 'Pelipper', 'Farigiraf'].map((s, i) => ({
+        species: s,
+        ...(i === 0 ? { moves } : {}),
+      })),
+    },
+  });
+  const member = res.structuredContent.members.find((m) => m.species === species);
+  return new Map((member.moves ?? []).map((m) => [m.move, m.legal]));
+}
+
+for (const [species, move, expected] of [
+  ['Rillaboom', 'Fake Out', true],
+  ['Sneasler', 'Fake Out', true],
+  ['Arcanine-Hisui', 'Head Smash', true],
+  ['Charizard-Mega-Y', 'Ancient Power', true],
+  ['Rillaboom', 'Surf', false],
+  ['Sneasler', 'Surf', false],
+  ['Arcanine-Hisui', 'Ice Beam', false],
+]) {
+  const legal = (await legalMoves(species, [move])).get(move);
+  console.log(`=== legality ${species} + ${move} => ${legal} (want ${expected}) ===`);
+  if (legal !== expected) failed++;
+}
+
+// The sets the meta tools hand out must survive the regulation's own legality
+// check: a `get_set` that `check_legality` rejects is a bug in one of them.
+const threats = (await client.callTool({ name: 'list_threats', arguments: { regulation: 'm-c' } })).structuredContent.threats;
+for (const threat of threats) {
+  const species = threat.megaForm ?? threat.form ?? threat.species;
+  const rejected = [...(await legalMoves(species, threat.moves))].filter(([, legal]) => !legal).map(([move]) => move);
+  if (rejected.length) {
+    console.log(`=== generated set ${species} rejected by check_legality: ${rejected.join(', ')} ===`);
+    failed++;
+  }
+}
+console.log(`=== ${threats.length} generated sets all pass check_legality ===`);
+
 console.log(failed === 0 ? '\nALL PASS' : `\n${failed} FAILURES`);
 await client.close();
 process.exit(failed === 0 ? 0 : 1);

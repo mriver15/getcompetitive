@@ -229,6 +229,43 @@ export function typeToObj(t: DexType) {
   };
 }
 
+/**
+ * Every move a species can know: its evolution line plus its base species.
+ *
+ * The line is the species and each pre-evolution, because egg and level-up
+ * moves carry up on evolution while Showdown files them against the species
+ * that learns them — Fake Out is Grookey's egg move, not Rillaboom's, yet
+ * Rillaboom can hold it.
+ *
+ * The base species is added for the submitted species only, which is what lets
+ * a form draw on the shared pool (Rotom-Wash on Rotom's). It deliberately does
+ * NOT extend the line: Johto Sneasel is Hisuian Sneasel's base species, but
+ * Surf arrives on Hisuian Sneasel's path to Sneasler by no route.
+ */
+export async function learnableMoveIds(dex: ModdedDex, species: Species): Promise<Set<string>> {
+  const line: Species[] = [];
+  const seen = new Set<string>();
+  let current: Species | undefined = species;
+  while (current && !seen.has(current.id)) {
+    seen.add(current.id);
+    line.push(current);
+    // A battle-only form carries no `prevo` of its own (Charizard-Mega-Y), so the
+    // first step falls back to its base species and the line runs on from there.
+    // A regional form does carry one (Arcanine-Hisui -> Growlithe-Hisui), and
+    // stopping there is what keeps Kantonian Growlithe's pool out of it.
+    const next: string =
+      current.prevo || (current === species && current.baseSpecies !== current.name ? current.baseSpecies : '');
+    current = next ? dex.species.get(next) : undefined;
+  }
+
+  const ids = new Set<string>();
+  for (const link of line) {
+    const learnset = await dex.learnsets.getByID(toID(link.name));
+    for (const id of Object.keys(learnset.learnset ?? {})) ids.add(id);
+  }
+  return ids;
+}
+
 /** Group a learnset's move sources into readable buckets. */
 export function learnsetToObj(ls: Learnset) {
   const buckets: Record<string, string[]> = {};

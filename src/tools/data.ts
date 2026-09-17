@@ -631,7 +631,7 @@ export function registerDataTools(server: McpServer) {
     {
       title: 'Get a Pokémon learnset',
       description:
-        'List every move a Pokémon can learn in a generation, grouped by acquisition method (level-up with the level, TM/TR, egg, tutor, event, and so on). Use it to validate moves before recommending a set; `check_legality` applies the same data when it flags moves a species cannot learn in a regulation. Accepts any species or form name; unknown species return an isError with near matches, and a species with no learnset data errors instead of returning an empty list. Read-only and offline.',
+        'List every move a Pokémon can learn in a generation, grouped by acquisition method (level-up with the level, TM/TR, egg, tutor, event, and so on). This is the species\u2019 own learnset: a move it inherits from a pre-evolution — an egg move such as Grookey\u2019s Fake Out — is filed against that pre-evolution, so use `check_legality` to decide whether a set\u2019s move is legal in a regulation. Accepts any species or form name; unknown species return an isError with near matches, and a species with no learnset data errors instead of returning an empty list. Read-only and offline.',
       annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {
         species: z.string().describe('Species or form name, e.g. "Garchomp", "Ogerpon-Wellspring".'),

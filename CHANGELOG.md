@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Tool-selection cues. Two of the four TDQS `shadow-candidate` pairs stated
+  their disjointness in only one direction: `calculate_matchups` and
+  `check_legality` now point at `calculate_stats` for stat values, which
+  completes the human review that CI defers on (`shadow-candidate` stays out of
+  the lint gate). The 25-tool count is unchanged and deliberate; the review
+  outcome is recorded in `.github/workflows/ci.yml`.
+
+### Fixed
+
+- **`check_legality` rejected moves a Pokémon inherits from a pre-evolution.**
+  Egg and level-up moves carry up on evolution while Showdown files them
+  against the species that learns them, so Rillaboom's Fake Out (Grookey's egg
+  move), Sneasler's Fake Out (Hisuian Sneasel's) and Arcanine-Hisui's Head
+  Smash (Hisuian Growlithe's) were all reported illegal — and `get_set` handed
+  out exactly those moves, so the meta tools contradicted the legality tool. A
+  move is now legal when any species in the evolution line knows it, without
+  letting another form's pool leak in: Johto Sneasel's Surf stays illegal on
+  Sneasler, and Mega and appliance forms keep their pre-evolution chain.
+  `check_legality` and `get_learnset` now state which of the two answers
+  move-legality questions, and `test/smoke.mjs` asserts both directions plus
+  that every generated set passes the regulation's own check.
+
 ## [2.0.0] - 2026-09-17
 
 ### Added

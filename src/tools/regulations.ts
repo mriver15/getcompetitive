@@ -4,7 +4,7 @@
  */
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { getDex, toID } from '../dex.js';
+import { getDex, learnableMoveIds, toID } from '../dex.js';
 import {
   REGULATION_SETS,
   getRegulationSet,
@@ -181,7 +181,7 @@ export function registerRegulationTools(server: McpServer) {
     {
       title: 'Check team legality',
       description:
-        'Validate up to 6 team members against a Pokémon Champions / VGC Regulation Set, reporting illegal or unknown species, duplicate National Pokédex numbers (Species Clause), duplicate items (Item Clause), unlearnable moves, team size (must be exactly 6), and who may Mega Evolve (one per battle). Species resolve case-insensitively to base species (any form of a legal base qualifies) and moves are checked against `get_learnset`\'s data. Use `get_regulation` for the roster; unknown ids return an isError listing them. Read-only and offline; returns `valid`, `violations`, and per-member checks.',
+        'Validate up to 6 team members against a Pokémon Champions / VGC Regulation Set, reporting illegal or unknown species, duplicate National Pokédex numbers (Species Clause), duplicate items (Item Clause), unlearnable moves, team size (must be exactly 6), and who may Mega Evolve (one per battle). Species resolve case-insensitively to base species (any form of a legal base qualifies). A move is legal when any species in the evolution line knows it — the form, its base species, or a pre-evolution — because egg and level-up moves carry up on evolution: Rillaboom may hold Fake Out, which is Grookey\u2019s egg move. `get_learnset` lists one species\u2019 own learnset rather than this union, `get_regulation` gives the roster, and for stat values rather than legality use `calculate_stats`. Unknown ids return an isError listing them. Read-only and offline; returns `valid`, `violations`, and per-member checks.',
       annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {
         regulation: z
@@ -330,17 +330,17 @@ export function registerRegulationTools(server: McpServer) {
 
         const moveChecks: { move: string; legal: boolean; note?: string }[] = [];
         if (sp.exists && entry.moves?.length) {
-          // A move is legal if it is in the form's learnset (form-exclusive moves
-          // like Rotom-Wash's Hydro Pump) OR the base species' learnset (the shared pool).
-          const lsForm = await dex.learnsets.getByID(toID(sp.name));
-          const lsBase = sp.baseSpecies && sp.baseSpecies !== sp.name ? await dex.learnsets.getByID(toID(sp.baseSpecies)) : lsForm;
+          // A move is legal when any species in the evolution line knows it: the
+          // form itself (form-exclusive moves like Rotom-Wash's Hydro Pump), its
+          // base species' shared pool, or a pre-evolution, whose egg and level-up
+          // moves carry up.
+          const learnable = await learnableMoveIds(dex, sp);
           for (const mv of entry.moves) {
             const m = dex.moves.get(mv);
-            const mid = toID(mv);
             if (!m.exists) {
               violations.push(`Unknown move "${mv}" on ${sp.name}.`);
               moveChecks.push({ move: mv, legal: false, note: 'unknown move' });
-            } else if (!lsForm.learnset?.[mid] && !lsBase.learnset?.[mid]) {
+            } else if (!learnable.has(m.id)) {
               violations.push(`Illegal move: ${sp.name} cannot learn ${m.name} in this format.`);
               moveChecks.push({ move: m.name, legal: false, note: 'not in learnset' });
             } else {
