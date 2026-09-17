@@ -44,6 +44,14 @@ jobs:
       # `shadow-candidate` is excluded on purpose: it flags schema cost
       # asymmetry for human review, and the spec folds Shadowing Risk into the
       # score beside the rubric rather than into it.
+      # That review was done on 2026-09-17, with 25 tools on the surface. All
+      # four candidates are disjoint by purpose — calculate_stats vs
+      # calculate_damage/calculate_matchups (stat tables, never a battle),
+      # check_legality vs calculate_stats (rules, not values), analyze_team vs
+      # get_type_matchup (a team's synergy, not one matchup) — and each now says
+      # so in both its own and its sibling's description, which is the remedy
+      # the rule prescribes. The count itself is deliberate: one tool per
+      # question across five domains, not a surface to be trimmed to a target.
       - run: npx -y mcp-tdqs@0.2.0 lint --command "node dist/index.js" --format json --output tdqs.json
       - run: |
           test "$(jq '[.tools[].findings[] | select(.severity == "warning" and .rule != "shadow-candidate")] | length' tdqs.json)" = 0

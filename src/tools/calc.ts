@@ -328,7 +328,7 @@ export function registerCalcTools(server: McpServer) {
     {
       title: 'Batch damage matchups',
       description:
-        'Run one attacker against 1-30 defenders in a single call, picking the hardest-hitting move per defender from `move` or `attacker.moves` and reporting each matchup\u2019s damage range, KO chance, immunity, and who moves first. Use `calculate_damage` for a single pinned matchup or when side screens and hazards matter (this tool\u2019s `field` has only gameType, weather, and terrain); use `analyze_team` for type-synergy, not damage. Supply `move` or a non-empty `attacker.moves`, else the call errors; defender levels default to 100. Read-only, offline, deterministic; unknown species or move names return an isError naming the offender.',
+        'Run one attacker against 1-30 defenders in a single call, picking the hardest-hitting move per defender from `move` or `attacker.moves` and reporting each matchup\u2019s damage range, KO chance, immunity, and who moves first. Use `calculate_damage` for a single pinned matchup or when side screens and hazards matter (this tool\u2019s `field` has only gameType, weather, and terrain); use `analyze_team` for type-synergy, not damage, and `calculate_stats` for a stat table with no battle. Supply `move` or a non-empty `attacker.moves`, else the call errors; defender levels default to 100. Read-only, offline, deterministic; unknown species or move names return an isError naming the offender.',
       annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {
         attacker: setSchema.describe('The single attacking Pok\u00e9mon; set `moves` to let the tool choose the best move against each defender.'),
