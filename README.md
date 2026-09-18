@@ -16,6 +16,7 @@ teams — including **Pokémon Champions / VGC** regulations.
 - **Structured, agent-first definitions** — every tool declares MCP annotations and an output schema, returns `structuredContent` alongside JSON text, and documents all of its parameters; the deterministic half of the [TDQS](https://tdqs.dev) checklist is linted in CI
 - Full **Pokémon Showdown** competitive dataset — species, alternate forms, stats, moves, items, abilities, natures, learnsets, types, tiers
 - **Battle math** from Smogon's calculator — stat calculation and full damage calculation (weather, terrain, boosts, items, Tera)
+- **Both EV scales** — the 0-252 EVs the calculator takes and Pokémon Champions' own 66 stat points, accepted on input and reported alongside every spread
 - **Official Regulation Sets** (M-A → M-C) with seasonal legal rosters and team legality checking
 - Generation-aware data (1–9, default 9)
 
@@ -45,7 +46,7 @@ Built on [`@pkmn/dex`](https://github.com/pkmn/EPOKe) (Showdown data) and
 | `get_archetype` | Full detail: description, roles, members, strengths, weaknesses, counters, tips |
 | `list_tiers` | All legal Pokemon grouped by competitive tier (singles/doubles) |
 | `list_speed_tiers` | Speed of every Pokemon in a tier at common investment levels, sorted |
-| `analyze_team` | Team synergy: stacked defensive weaknesses, offensive coverage gaps, speed placement, and a heuristic 0-100 score |
+| `analyze_team` | Team synergy: stacked defensive weaknesses, offensive coverage gaps, speed placement, a heuristic score, and — with a regulation — coverage against the meta's real sets |
 
 ### Meta (usage-derived)
 | Tool | Purpose |

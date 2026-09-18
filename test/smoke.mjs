@@ -33,10 +33,17 @@ const calls = [
   ['get_type_matchup', { defender: 'Garchomp' }],
   ['get_type_matchup', { attacker: 'Ice', defender: 'Garchomp' }],
   ['calculate_stats', { species: 'Garchomp', level: 50, nature: 'Jolly', evs: { atk: 252, spe: 252 } }],
+  // Champions point spreads are accepted alongside EVs, and echoed back in kind.
+  ['calculate_stats', { species: 'Incineroar', level: 50, nature: 'Careful', championsPoints: { hp: 32, def: 14, spd: 20 } }],
   ['calculate_damage', {
     attacker: { species: 'Garchomp', level: 50, nature: 'Jolly', evs: { atk: 252, spe: 252 }, item: 'Choice Band' },
     defender: { species: 'Corviknight', level: 50, nature: 'Impish', evs: { hp: 252, def: 252 } },
     move: 'Dragon Claw',
+  }],
+  ['calculate_damage', {
+    attacker: { species: 'Incineroar', level: 50, nature: 'Careful', championsPoints: { hp: 32, def: 14, spd: 20 } },
+    defender: { species: 'Sneasler', level: 50, nature: 'Adamant', championsPoints: { hp: 2, atk: 32, spe: 32 } },
+    move: 'Flare Blitz',
   }],
   ['calculate_damage', {
     attacker: { species: 'Flutter Mane', level: 50, nature: 'Timid', evs: { spa: 252, spe: 252 }, item: 'Booster Energy' },
@@ -94,6 +101,16 @@ const calls = [
     ],
   }],
   ['check_speed', { species: 'Garchomp', level: 50, nature: 'Jolly', evs: { spe: 252 }, regulation: 'm-c' }],
+  ['check_speed', { species: 'Dragapult', level: 50, nature: 'Timid', championsPoints: { spe: 32 } }],
+  // Real sets in the team turn the threat coverage into a real-Speed comparison.
+  ['analyze_team', {
+    regulation: 'm-c',
+    team: [
+      { species: 'Garchomp', nature: 'Jolly', evs: { atk: 252, spe: 252 } },
+      { species: 'Incineroar', nature: 'Careful', championsPoints: { hp: 32, def: 14, spd: 20 }, item: 'Sitrus Berry' },
+      { species: 'Gholdengo', moves: ['Make It Rain', 'Shadow Ball'] },
+    ],
+  }],
   ['optimize_evs', {
     species: 'Garchomp', level: 50, nature: 'Jolly', item: 'Choice Band',
     kill: { target: { species: 'Incineroar', level: 50, nature: 'Careful', evs: { hp: 252, spd: 252 } }, move: 'Earthquake' },
@@ -149,6 +166,8 @@ for (const [name, args] of calls) {
 for (const [name, args] of [
   ['get_pokemon', { species: 'NotAMon' }],
   ['calculate_stats', { species: 'Garchomp', level: 50, evs: { atk: 999 } }],
+  ['calculate_stats', { species: 'Garchomp', level: 50, evs: { spe: 4 }, championsPoints: { spe: 32 } }],
+  ['calculate_stats', { species: 'Garchomp', level: 50, championsPoints: { hp: 32, atk: 32, spe: 32 } }],
   ['get_type_matchup', { attacker: 'Fire', defender: 'Bogus' }],
 ]) {
   const res = await client.callTool({ name, arguments: args });
