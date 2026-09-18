@@ -1,6 +1,6 @@
 {
   "name": "getcompetitive",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "description": "MCP server exposing competitive Pokemon data and battle mechanics for team building and decision making",
   "type": "module",
   "bin": {

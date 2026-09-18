@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.1] - 2026-09-18
+
 ### Added
 
 - **Coverage is now knowable before it is needed.** `get_set` only answers for
