@@ -4,17 +4,10 @@
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Move as CalcMove, calculate } from '@smogon/calc';
-import { normalizeGen, getDex, statTable, damageResult, finalStat, buildPokemon, buildField, getCalcGen, STATS, type SetInput } from '../dex.js';
+import { normalizeGen, getDex, statTable, damageResult, finalStat, buildPokemon, buildField, getCalcGen, resolveEvs, evsToChampionsPoints, STATS, type SetInput } from '../dex.js';
 import { getRegulationSet } from '../regulations.js';
 import { ok, wrap, requireExists, READ_ONLY_ANNOTATIONS } from '../result.js';
-import { genSchema } from './schemas.js';
-
-const evMap = z
-  .record(z.string(), z.number())
-  .optional()
-  .describe(
-    'EVs keyed by stat id (hp, atk, def, spa, spd, spe), each 0-252 in steps of 4; omitted stats are 0, and a total above 510 is rejected.',
-  );
+import { genSchema, evMap, championsPointsMap } from './schemas.js';
 
 const ivMap = z
   .record(z.string(), z.number())
@@ -43,6 +36,7 @@ const setSchema = z.object({
     .describe('Nature name, e.g. "Jolly", "Modest", "Adamant"; defaults to Serious (neutral) when omitted.'),
   ivs: ivMap,
   evs: evMap,
+  championsPoints: championsPointsMap,
   item: z
     .string()
     .optional()
@@ -107,6 +101,13 @@ const reportedEvs = z
     'EVs the set was calculated with, keyed by stat id (hp, atk, def, spa, spd, spe) with stats left at 0 omitted; generations 1-2 fix all six at 252 when the call supplies none.',
   );
 
+/** The same spread expressed in Champions stat points, for entry into the game. */
+const reportedChampionsPoints = z
+  .record(z.string(), z.number())
+  .describe(
+    'The spread as Pok\u00e9mon Champions stat points (whole numbers, at most 32 in a stat, 66 total) \u2014 what the game\u2019s training screen takes; stats left uninvested are omitted and a maxed stat reads 32. The two systems budget differently (510 EVs against 66 points), so a spread trimmed to fit the EV cap reads back a point or two under what was asked: this is the nearest point spread for the stats actually computed, not a copy of the input.',
+  );
+
 /** `[minimum, maximum]` damage of a resolved move, across all of its rolls. */
 const damageRangeSchema = z
   .tuple([z.number(), z.number()])
@@ -120,6 +121,7 @@ const damageSetSchema = z.object({
   level: z.number().int().describe('Level the set was calculated at; the damage tools default nested sets to level 100.'),
   nature: z.string().describe('Nature the stats were computed with, e.g. "Jolly"; Serious when the call omitted one.'),
   evs: reportedEvs,
+  championsPoints: reportedChampionsPoints,
   ivs: statBlock('Individual value for', 'IVs the set was calculated with; all six keys are present, defaulting to 31.'),
   item: z.string().optional().describe('Held item echoed back as supplied, e.g. "Choice Band", whose effect the calc applied; absent when the set carried none.'),
   ability: z
@@ -148,6 +150,7 @@ export function registerCalcTools(server: McpServer) {
           .optional()
           .describe('Nature name, e.g. "Jolly", "Modest"; default Serious (raises and lowers nothing).'),
         evs: evMap,
+        championsPoints: championsPointsMap,
         ivs: ivMap,
         generation: genSchema,
       },
@@ -159,6 +162,7 @@ export function registerCalcTools(server: McpServer) {
         baseStats: statBlock('Base', 'The species\u2019 unmodified base stats, the same for every set of that species.'),
         bst: z.number().describe('Base stat total: the sum of the six base stats, a rough measure of the species\u2019 overall power.'),
         evs: statBlock('EV applied to', 'The EVs actually used per stat; all six keys are present, 0 for stats the call left uninvested.'),
+        championsPoints: reportedChampionsPoints,
         ivs: statBlock('Individual value for', 'The IVs actually used per stat; all six keys are present, defaulting to 31.'),
         stats: statBlock('Final', 'The six in-game stats this species reaches at this level, nature, IVs, and EVs; `hp` is the full HP stat, not a percentage.'),
       },
@@ -169,6 +173,7 @@ export function registerCalcTools(server: McpServer) {
         level: number;
         nature?: string;
         evs?: Record<string, number>;
+        championsPoints?: Record<string, number>;
         ivs?: Record<string, number>;
         generation: number;
       }) => {
@@ -177,11 +182,12 @@ export function registerCalcTools(server: McpServer) {
         const s = dex.species.get(args.species);
         requireExists(s, 'Pokemon species', args.species);
 
+        const supplied = resolveEvs(args.evs, args.championsPoints);
         const ivs: Record<string, number> = {};
         const evs: Record<string, number> = {};
         for (const st of STATS) {
           ivs[st] = args.ivs?.[st] ?? 31;
-          evs[st] = args.evs?.[st] ?? 0;
+          evs[st] = supplied[st] ?? 0;
           if (ivs[st] < 0 || ivs[st] > 31) throw new Error(`IV "${st}" must be 0-31.`);
           if (evs[st] < 0 || evs[st] > 252) throw new Error(`EV "${st}" must be 0-252.`);
         }
@@ -201,6 +207,7 @@ export function registerCalcTools(server: McpServer) {
           baseStats: s.baseStats,
           bst: s.bst,
           evs,
+          championsPoints: evsToChampionsPoints(evs),
           ivs,
           stats,
         });
@@ -518,6 +525,9 @@ export function registerCalcTools(server: McpServer) {
         level: z.number().int().min(1).max(100).default(50).describe('Level 1-100; default 50, matching VGC play.'),
         nature: z.string().optional().describe('Nature name, e.g. "Jolly", "Timid"; default Serious (neutral Speed).'),
         evs: evMap.describe('EVs keyed by stat id; only `spe` (0-252) changes the result, e.g. { spe: 252 }.'),
+        championsPoints: championsPointsMap.describe(
+          'The same Speed investment in Pok\u00e9mon Champions stat points, e.g. { spe: 32 } for a maxed Speed stat; give this or `evs`, not both.',
+        ),
         ivs: ivMap.describe('IVs keyed by stat id; only `spe` (0-31) changes the result, and it defaults to 31.'),
         boosts: boostMap.describe('Stat stages; only `spe` (-6..+6) is applied, e.g. { spe: 1 } for a +1 Speed stage.'),
         item: z.string().optional().describe('Held item, e.g. "Choice Scarf"; only Choice Scarf multiplies Speed (\u00d71.5), other items are listed as speed-neutral.'),
@@ -600,6 +610,7 @@ export function registerCalcTools(server: McpServer) {
         level: number;
         nature?: string;
         evs?: Record<string, number>;
+        championsPoints?: Record<string, number>;
         ivs?: Record<string, number>;
         boosts?: Record<string, number>;
         item?: string;
@@ -614,7 +625,7 @@ export function registerCalcTools(server: McpServer) {
         const nature = args.nature ?? 'Serious';
         requireExists(dex.natures.get(nature), 'nature', nature);
 
-        const speEV = args.evs?.spe ?? 0;
+        const speEV = resolveEvs(args.evs, args.championsPoints).spe ?? 0;
         const speIV = args.ivs?.spe ?? 31;
         const boost = args.boosts?.spe ?? 0;
         if (speEV < 0 || speEV > 252) throw new Error('EV "spe" must be 0-252.');
@@ -753,6 +764,7 @@ export function registerCalcTools(server: McpServer) {
         nature: z.string().describe('Nature the spread was solved with, e.g. "Adamant"; Serious when the call omitted one.'),
         item: z.string().optional().describe('Held item assumed while solving, as supplied; absent when the call gave none.'),
         evs: statBlock('EV assigned to', 'The solved spread: all six keys, each a multiple of 4 from 0 to 252, with the `maximize` stat holding the leftover EVs.'),
+        championsPoints: reportedChampionsPoints,
         stats: statBlock('Final', 'The six stats this exact spread reaches at this level and nature; recompute with `calculate_stats` to check a different spread.'),
         totalEVs: z.number().int().describe('Sum of the six solved EVs, spent in multiples of 4 so 508 is the practical maximum.'),
         unusedEVs: z.number().int().describe('EVs left over after the goals and the maximize step: 508 minus `totalEVs`, never negative.'),
@@ -905,6 +917,7 @@ export function registerCalcTools(server: McpServer) {
           nature,
           item: args.item,
           evs: required,
+          championsPoints: evsToChampionsPoints(required),
           stats: finalStats,
           totalEVs: STATS.reduce((s, st) => s + required[st], 0),
           unusedEVs: Math.max(0, 508 - STATS.reduce((s, st) => s + required[st], 0)),

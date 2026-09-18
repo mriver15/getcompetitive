@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Pokémon Champions stat points alongside EVs.** The calculator takes 0-252 EVs
+  under a 510 cap; the game spends 66 points with at most 32 in one stat. Every
+  EV-taking tool now also accepts `championsPoints` — give one scale or the
+  other, never both — and every tool that reports a spread reports it in both,
+  so a spread read off the game's training screen can be used directly and a
+  solved spread can be typed back into it. One point is worth 8 EVs; because the
+  budgets differ, a spread trimmed to fit the 510 EV cap reads back a point or
+  two under what was asked, and the field says so.
+- **`analyze_team` reports `threatCoverage`** when given a regulation with a
+  usage-derived threat list. For each of the meta's most-used sets it compares
+  real Speed at level 50 — the threat's own nature, EVs, item and Mega form
+  against your members' supplied spreads — and reports the best super-effective
+  hit the team has, with the threats nothing hits super-effectively listed as
+  the holes to fix. Team members take optional `nature`, `evs`/`championsPoints`
+  and `item`, so the comparison uses the set actually run rather than base stats.
+
 ## [2.0.1] - 2026-09-17
 
 ### Changed

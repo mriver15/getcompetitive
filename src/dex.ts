@@ -326,12 +326,69 @@ export function finalStat(
   return calcStat(getCalcGen(gen), stat, base, iv, ev, level, nature);
 }
 
+/** Pokémon Champions budgets stat points rather than EVs: 66 total, at most 32 in one stat. */
+export const CHAMPIONS_POINTS_TOTAL = 66;
+export const CHAMPIONS_POINTS_MAX = 32;
+/** One point is worth 8 EVs — the rate that lands 32 points on the 252-EV cap. */
+const EV_PER_CHAMPIONS_POINT = 8;
+
+/**
+ * Convert a Champions stat-point spread (0-32 per stat, 66 points total) into the
+ * 0-252 EVs `@smogon/calc` takes.
+ *
+ * The two systems budget differently — 66 points is 528 EVs at this rate, against
+ * the 510 cap the calc enforces — so a converted spread is trimmed from its largest
+ * stats, in steps of 4, until it fits. `scripts/build-threats.mjs` applies the same
+ * rule to the published spreads; keep the two in step.
+ */
+export function championsPointsToEvs(points: Record<string, number>): Record<string, number> {
+  let total = 0;
+  const evs: Record<string, number> = {};
+  for (const s of STATS) {
+    const p = points[s] ?? 0;
+    if (!Number.isInteger(p) || p < 0 || p > CHAMPIONS_POINTS_MAX) {
+      throw new Error(`Champions points for "${s}" must be a whole number 0-${CHAMPIONS_POINTS_MAX}.`);
+    }
+    total += p;
+    if (p > 0) evs[s] = Math.min(252, p * EV_PER_CHAMPIONS_POINT);
+  }
+  if (total > CHAMPIONS_POINTS_TOTAL) {
+    throw new Error(`Champions spread totals ${total} points; the cap is ${CHAMPIONS_POINTS_TOTAL}.`);
+  }
+
+  let sum = STATS.reduce((acc, s) => acc + (evs[s] ?? 0), 0);
+  while (sum > 510) {
+    let largest: StatID = STATS[0];
+    for (const s of STATS) if ((evs[s] ?? 0) > (evs[largest] ?? 0)) largest = s;
+    if (!evs[largest]) break;
+    evs[largest] -= 4;
+    sum -= 4;
+  }
+  return evs;
+}
+
+/**
+ * Read an EV spread back as Champions stat points, for output a player can type
+ * into the game. A maxed stat reads 32; because the two budgets differ (510 EVs
+ * against 66 points) this is the nearest point spread, not an identity.
+ */
+export function evsToChampionsPoints(evs: Record<string, number>): Record<string, number> {
+  const points: Record<string, number> = {};
+  for (const s of STATS) {
+    const ev = evs[s] ?? 0;
+    if (ev > 0) points[s] = Math.min(CHAMPIONS_POINTS_MAX, Math.round(ev / EV_PER_CHAMPIONS_POINT));
+  }
+  return points;
+}
+
 export interface SetInput {
   species: string;
   level?: number;
   nature?: string;
   ivs?: Record<string, number>;
   evs?: Record<string, number>;
+  /** Champions stat points, an alternative to `evs`; give one or the other, never both. */
+  championsPoints?: Record<string, number>;
   item?: string;
   ability?: string;
   boosts?: Record<string, number>;
@@ -341,6 +398,19 @@ export interface SetInput {
   isDynamaxed?: boolean;
   curHP?: number;
   moves?: string[];
+}
+
+/**
+ * Resolve a set's spread whichever scale it was given in: `evs` (0-252) or
+ * `championsPoints` (0-32 each, 66 total). Giving both is an error rather than a
+ * silent preference, so a caller can never think it supplied one and get the other.
+ */
+export function resolveEvs(
+  evs: Record<string, number> | undefined,
+  championsPoints: Record<string, number> | undefined,
+): Record<string, number> {
+  if (evs && championsPoints) throw new Error('Give either evs or championsPoints, not both.');
+  return championsPoints ? championsPointsToEvs(championsPoints) : cleanMap(evs, STATS, 'EV');
 }
 
 function cleanMap(map: Record<string, number> | undefined, allowed: readonly string[], label: string) {
@@ -361,7 +431,7 @@ export function buildPokemon(gen: GenerationNum, input: SetInput): Pokemon {
   if (level < 1 || level > 100) throw new Error('level must be 1-100.');
 
   const ivs = cleanMap(input.ivs, STATS, 'IV');
-  const evs = cleanMap(input.evs, STATS, 'EV');
+  const evs = resolveEvs(input.evs, input.championsPoints);
   for (const stat of STATS) {
     if (ivs[stat] !== undefined && (ivs[stat] < 0 || ivs[stat] > 31)) {
       throw new Error(`IV "${stat}" must be 0-31.`);
@@ -483,6 +553,7 @@ function summarizeSet(p: Pokemon) {
     level: p.level,
     nature: p.nature,
     evs,
+    championsPoints: evsToChampionsPoints(evs),
     ivs: p.ivs,
     item: p.item,
     ability: p.ability,
