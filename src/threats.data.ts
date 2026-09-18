@@ -6,10 +6,10 @@ export default {
     "name": "Regulation Set M-C",
     "source": "usage",
     "sourceAsOf": "2026-09-17",
-    "note": "Usage-derived, not editorial: species, items, abilities, natures, moves and the ordering come from 2994 tournament teams (Limitless VGC online events with at least 25 players, through 2026-09-17); EV spreads come from the in-game ranked ladder. Tera types are absent because Pokémon Champions has no Terastallization.",
+    "note": "Usage-derived, not editorial: species, items, abilities, natures, moves and the ordering come from 3143 tournament teams (Limitless VGC online events with at least 25 players, through 2026-09-17); EV spreads come from the in-game ranked ladder. Tera types are absent because Pokémon Champions has no Terastallization.",
     "sample": {
-      "teams": 2994,
-      "tournaments": 38,
+      "teams": 3143,
+      "tournaments": 40,
       "minPlayers": 25,
       "windowDays": 30,
       "through": "2026-09-17"
@@ -38,7 +38,7 @@ export default {
         "role": "Grassy Terrain setter",
         "tier": "S",
         "rank": 1,
-        "usage": 54.2,
+        "usage": 54.4,
         "item": "Miracle Seed",
         "ability": "Grassy Surge",
         "nature": "Adamant",
@@ -47,20 +47,25 @@ export default {
           "atk": 248,
           "spd": 16
         },
+        "championsPoints": {
+          "hp": 32,
+          "atk": 32,
+          "spd": 2
+        },
         "moves": [
           "Fake Out",
           "Grassy Glide",
           "Wood Hammer",
           "U-turn"
         ],
-        "notes": "54.2% usage across 2,994 teams in 38 M-C tournaments (through 2026-09-17); item Miracle Seed 59%, ability Grassy Surge 99%, nature Adamant 86.6%; spread 244 hp / 248 atk / 16 spd."
+        "notes": "54.4% usage across 3,143 teams in 40 M-C tournaments (through 2026-09-17); item Miracle Seed 59.7%, ability Grassy Surge 99.1%, nature Adamant 86.8%; spread 244 hp / 248 atk / 16 spd."
       },
       {
         "species": "Sneasler",
         "role": "Fake Out support",
         "tier": "S",
         "rank": 2,
-        "usage": 47.8,
+        "usage": 47.9,
         "item": "Grassy Seed",
         "ability": "Unburden",
         "nature": "Adamant",
@@ -69,13 +74,18 @@ export default {
           "atk": 244,
           "spe": 248
         },
+        "championsPoints": {
+          "hp": 2,
+          "atk": 32,
+          "spe": 32
+        },
         "moves": [
           "Close Combat",
           "Dire Claw",
           "Protect",
           "Fake Out"
         ],
-        "notes": "47.8% usage across 2,994 teams in 38 M-C tournaments (through 2026-09-17); item Grassy Seed 40.5%, ability Unburden 90.6%, nature Adamant 67.8%; spread 16 hp / 244 atk / 248 spe."
+        "notes": "47.9% usage across 3,143 teams in 40 M-C tournaments (through 2026-09-17); item Grassy Seed 40.5%, ability Unburden 90.9%, nature Adamant 68.5%; spread 16 hp / 244 atk / 248 spe."
       },
       {
         "species": "Salamence",
@@ -83,7 +93,7 @@ export default {
         "role": "Mega Tailwind setter",
         "tier": "S",
         "rank": 3,
-        "usage": 37.4,
+        "usage": 37.5,
         "item": "Salamencite",
         "ability": "Intimidate",
         "megaAbility": "Aerilate",
@@ -93,20 +103,25 @@ export default {
           "spa": 244,
           "spe": 248
         },
+        "championsPoints": {
+          "hp": 2,
+          "spa": 32,
+          "spe": 32
+        },
         "moves": [
           "Protect",
           "Hyper Voice",
           "Tailwind",
           "Draco Meteor"
         ],
-        "notes": "37.4% usage across 2,994 teams in 38 M-C tournaments (through 2026-09-17); item Salamencite 100%, ability Intimidate 95.1%, nature Timid 42.9%; spread 16 hp / 244 spa / 248 spe."
+        "notes": "37.5% usage across 3,143 teams in 40 M-C tournaments (through 2026-09-17); item Salamencite 100%, ability Intimidate 95.2%, nature Timid 44.1%; spread 16 hp / 244 spa / 248 spe."
       },
       {
         "species": "Incineroar",
         "role": "Intimidate pivot",
         "tier": "S",
         "rank": 4,
-        "usage": 34.3,
+        "usage": 33.9,
         "item": "Sitrus Berry",
         "ability": "Intimidate",
         "nature": "Careful",
@@ -115,20 +130,25 @@ export default {
           "def": 112,
           "spd": 160
         },
+        "championsPoints": {
+          "hp": 32,
+          "def": 14,
+          "spd": 20
+        },
         "moves": [
           "Fake Out",
           "Flare Blitz",
           "Parting Shot",
           "Throat Chop"
         ],
-        "notes": "34.3% usage across 2,994 teams in 38 M-C tournaments (through 2026-09-17); item Sitrus Berry 70%, ability Intimidate 98.8%, nature Careful 40.3%; spread 236 hp / 112 def / 160 spd."
+        "notes": "33.9% usage across 3,143 teams in 40 M-C tournaments (through 2026-09-17); item Sitrus Berry 70%, ability Intimidate 98.9%, nature Careful 40.3%; spread 236 hp / 112 def / 160 spd."
       },
       {
         "species": "Kingambit",
         "role": "Physical attacker",
         "tier": "S",
         "rank": 5,
-        "usage": 29.6,
+        "usage": 29.3,
         "item": "Chople Berry",
         "ability": "Defiant",
         "nature": "Adamant",
@@ -137,20 +157,25 @@ export default {
           "atk": 248,
           "spd": 16
         },
+        "championsPoints": {
+          "hp": 32,
+          "atk": 32,
+          "spd": 2
+        },
         "moves": [
           "Kowtow Cleave",
           "Sucker Punch",
           "Iron Head",
           "Protect"
         ],
-        "notes": "29.6% usage across 2,994 teams in 38 M-C tournaments (through 2026-09-17); item Chople Berry 43.3%, ability Defiant 99.1%, nature Adamant 88.7%; spread 244 hp / 248 atk / 16 spd."
+        "notes": "29.3% usage across 3,143 teams in 40 M-C tournaments (through 2026-09-17); item Chople Berry 43.7%, ability Defiant 99.1%, nature Adamant 88.8%; spread 244 hp / 248 atk / 16 spd."
       },
       {
         "species": "Basculegion",
         "role": "Physical attacker",
         "tier": "A",
         "rank": 6,
-        "usage": 26.1,
+        "usage": 25.6,
         "item": "Life Orb",
         "ability": "Adaptability",
         "nature": "Adamant",
@@ -159,13 +184,18 @@ export default {
           "atk": 244,
           "spe": 248
         },
+        "championsPoints": {
+          "hp": 2,
+          "atk": 32,
+          "spe": 32
+        },
         "moves": [
           "Last Respects",
           "Wave Crash",
           "Aqua Jet",
           "Protect"
         ],
-        "notes": "26.1% usage across 2,994 teams in 38 M-C tournaments (through 2026-09-17); item Life Orb 42.5%, ability Adaptability 94.8%, nature Adamant 61%; spread 16 hp / 244 atk / 248 spe."
+        "notes": "25.6% usage across 3,143 teams in 40 M-C tournaments (through 2026-09-17); item Life Orb 42.2%, ability Adaptability 95%, nature Adamant 60.3%; spread 16 hp / 244 atk / 248 spe."
       },
       {
         "species": "Indeedee",
@@ -173,7 +203,7 @@ export default {
         "role": "Psychic Terrain setter",
         "tier": "A",
         "rank": 7,
-        "usage": 24.6,
+        "usage": 24.8,
         "item": "Colbur Berry",
         "ability": "Psychic Surge",
         "nature": "Relaxed",
@@ -182,20 +212,25 @@ export default {
           "spa": 244,
           "spe": 248
         },
+        "championsPoints": {
+          "hp": 2,
+          "spa": 32,
+          "spe": 32
+        },
         "moves": [
           "Follow Me",
           "Trick Room",
           "Helping Hand",
           "Psychic"
         ],
-        "notes": "24.6% usage across 2,994 teams in 38 M-C tournaments (through 2026-09-17); item Colbur Berry 38.1%, ability Psychic Surge 98.9%, nature Relaxed 40.4%; spread 16 hp / 244 spa / 248 spe."
+        "notes": "24.8% usage across 3,143 teams in 40 M-C tournaments (through 2026-09-17); item Colbur Berry 38.5%, ability Psychic Surge 99%, nature Relaxed 39.7%; spread 16 hp / 244 spa / 248 spe."
       },
       {
         "species": "Gholdengo",
         "role": "Special setup sweeper",
         "tier": "A",
         "rank": 8,
-        "usage": 18.1,
+        "usage": 18.7,
         "item": "Life Orb",
         "ability": "Good as Gold",
         "nature": "Modest",
@@ -204,13 +239,18 @@ export default {
           "spa": 244,
           "spe": 248
         },
+        "championsPoints": {
+          "hp": 2,
+          "spa": 32,
+          "spe": 32
+        },
         "moves": [
-          "Shadow Ball",
           "Make It Rain",
+          "Shadow Ball",
           "Protect",
           "Nasty Plot"
         ],
-        "notes": "18.1% usage across 2,994 teams in 38 M-C tournaments (through 2026-09-17); item Life Orb 75.5%, ability Good as Gold 100%, nature Modest 58.6%; spread 16 hp / 244 spa / 248 spe."
+        "notes": "18.7% usage across 3,143 teams in 40 M-C tournaments (through 2026-09-17); item Life Orb 75.9%, ability Good as Gold 100%, nature Modest 56.5%; spread 16 hp / 244 spa / 248 spe."
       },
       {
         "species": "Golisopod",
@@ -218,7 +258,7 @@ export default {
         "role": "Mega Physical setup sweeper",
         "tier": "A",
         "rank": 9,
-        "usage": 16.7,
+        "usage": 16.4,
         "item": "Golisopite",
         "ability": "Emergency Exit",
         "megaAbility": "Emergency Exit",
@@ -228,20 +268,25 @@ export default {
           "atk": 248,
           "spd": 16
         },
+        "championsPoints": {
+          "hp": 32,
+          "atk": 32,
+          "spd": 2
+        },
         "moves": [
           "Iron Head",
           "Leech Life",
           "Protect",
           "Swords Dance"
         ],
-        "notes": "16.7% usage across 2,994 teams in 38 M-C tournaments (through 2026-09-17); item Golisopite 100%, ability Emergency Exit 97.2%, nature Adamant 62.6%; spread 244 hp / 248 atk / 16 spd."
+        "notes": "16.4% usage across 3,143 teams in 40 M-C tournaments (through 2026-09-17); item Golisopite 100%, ability Emergency Exit 97.2%, nature Adamant 63.2%; spread 244 hp / 248 atk / 16 spd."
       },
       {
         "species": "Farigiraf",
         "role": "Trick Room setter",
         "tier": "A",
         "rank": 10,
-        "usage": 16.2,
+        "usage": 16,
         "item": "Sitrus Berry",
         "ability": "Armor Tail",
         "nature": "Bold",
@@ -250,13 +295,18 @@ export default {
           "def": 160,
           "spd": 152
         },
+        "championsPoints": {
+          "hp": 27,
+          "def": 20,
+          "spd": 19
+        },
         "moves": [
           "Trick Room",
           "Psychic",
           "Protect",
           "Helping Hand"
         ],
-        "notes": "16.2% usage across 2,994 teams in 38 M-C tournaments (through 2026-09-17); item Sitrus Berry 59.9%, ability Armor Tail 98.8%, nature Bold 36.6%; spread 196 hp / 160 def / 152 spd."
+        "notes": "16% usage across 3,143 teams in 40 M-C tournaments (through 2026-09-17); item Sitrus Berry 60.6%, ability Armor Tail 98.8%, nature Bold 36.4%; spread 196 hp / 160 def / 152 spd."
       },
       {
         "species": "Floette",
@@ -264,7 +314,7 @@ export default {
         "role": "Mega Special setup sweeper",
         "tier": "A",
         "rank": 11,
-        "usage": 16,
+        "usage": 15.5,
         "item": "Floettite",
         "ability": "Flower Veil",
         "megaAbility": "Fairy Aura",
@@ -274,13 +324,18 @@ export default {
           "spa": 244,
           "spe": 248
         },
+        "championsPoints": {
+          "hp": 2,
+          "spa": 32,
+          "spe": 32
+        },
         "moves": [
           "Protect",
           "Dazzling Gleam",
           "Moonblast",
           "Calm Mind"
         ],
-        "notes": "16% usage across 2,994 teams in 38 M-C tournaments (through 2026-09-17); item Floettite 100%, ability Flower Veil 95%, nature Modest 61.4%; spread 16 hp / 244 spa / 248 spe."
+        "notes": "15.5% usage across 3,143 teams in 40 M-C tournaments (through 2026-09-17); item Floettite 100%, ability Flower Veil 95.1%, nature Modest 61.1%; spread 16 hp / 244 spa / 248 spe."
       },
       {
         "species": "Arcanine",
@@ -288,7 +343,7 @@ export default {
         "role": "Physical attacker",
         "tier": "A",
         "rank": 12,
-        "usage": 14.4,
+        "usage": 15.2,
         "item": "Focus Sash",
         "ability": "Rock Head",
         "nature": "Jolly",
@@ -298,13 +353,19 @@ export default {
           "def": 24,
           "spd": 232
         },
+        "championsPoints": {
+          "hp": 31,
+          "atk": 3,
+          "def": 3,
+          "spd": 29
+        },
         "moves": [
           "Flare Blitz",
           "Protect",
           "Head Smash",
           "Extreme Speed"
         ],
-        "notes": "14.4% usage across 2,994 teams in 38 M-C tournaments (through 2026-09-17); item Focus Sash 95.8%, ability Rock Head 96.3%, nature Jolly 79.6%; spread 228 hp / 24 atk / 24 def / 232 spd."
+        "notes": "15.2% usage across 3,143 teams in 40 M-C tournaments (through 2026-09-17); item Focus Sash 95.8%, ability Rock Head 96.4%, nature Jolly 80.4%; spread 228 hp / 24 atk / 24 def / 232 spd."
       },
       {
         "species": "Garchomp",
@@ -320,20 +381,25 @@ export default {
           "atk": 244,
           "spe": 248
         },
+        "championsPoints": {
+          "hp": 2,
+          "atk": 32,
+          "spe": 32
+        },
         "moves": [
           "Dragon Claw",
           "Rock Slide",
           "Stomping Tantrum",
           "Protect"
         ],
-        "notes": "13.5% usage across 2,994 teams in 38 M-C tournaments (through 2026-09-17); item Life Orb 47.4%, ability Rough Skin 96.1%, nature Jolly 49.6%; spread 16 hp / 244 atk / 248 spe."
+        "notes": "13.5% usage across 3,143 teams in 40 M-C tournaments (through 2026-09-17); item Life Orb 47.3%, ability Rough Skin 96.3%, nature Jolly 49.4%; spread 16 hp / 244 atk / 248 spe."
       },
       {
         "species": "Pelipper",
         "role": "Rain setter",
         "tier": "B",
         "rank": 14,
-        "usage": 13.2,
+        "usage": 13,
         "item": "Focus Sash",
         "ability": "Drizzle",
         "nature": "Modest",
@@ -342,43 +408,26 @@ export default {
           "spa": 244,
           "spe": 248
         },
+        "championsPoints": {
+          "hp": 2,
+          "spa": 32,
+          "spe": 32
+        },
         "moves": [
           "Hurricane",
           "Weather Ball",
           "Tailwind",
           "Wide Guard"
         ],
-        "notes": "13.2% usage across 2,994 teams in 38 M-C tournaments (through 2026-09-17); item Focus Sash 44.3%, ability Drizzle 97.2%, nature Modest 63.3%; spread 16 hp / 244 spa / 248 spe."
-      },
-      {
-        "species": "Sylveon",
-        "role": "Special attacker",
-        "tier": "B",
-        "rank": 15,
-        "usage": 10.9,
-        "item": "Fairy Feather",
-        "ability": "Pixilate",
-        "nature": "Modest",
-        "evs": {
-          "hp": 244,
-          "def": 16,
-          "spa": 248
-        },
-        "moves": [
-          "Hyper Voice",
-          "Hyper Beam",
-          "Quick Attack",
-          "Detect"
-        ],
-        "notes": "10.9% usage across 2,994 teams in 38 M-C tournaments (through 2026-09-17); item Fairy Feather 92.3%, ability Pixilate 99.1%, nature Modest 92.3%; spread 244 hp / 16 def / 248 spa."
+        "notes": "13% usage across 3,143 teams in 40 M-C tournaments (through 2026-09-17); item Focus Sash 44.9%, ability Drizzle 97.3%, nature Modest 64.1%; spread 16 hp / 244 spa / 248 spe."
       },
       {
         "species": "Raichu",
         "megaForm": "Raichu-Mega-Y",
         "role": "Mega Fake Out support",
         "tier": "B",
-        "rank": 16,
-        "usage": 10.8,
+        "rank": 15,
+        "usage": 11.5,
         "item": "Raichunite Y",
         "ability": "Lightning Rod",
         "megaAbility": "No Guard",
@@ -388,13 +437,45 @@ export default {
           "spa": 244,
           "spe": 248
         },
+        "championsPoints": {
+          "hp": 2,
+          "spa": 32,
+          "spe": 32
+        },
         "moves": [
           "Zap Cannon",
           "Focus Blast",
           "Protect",
           "Fake Out"
         ],
-        "notes": "10.8% usage across 2,994 teams in 38 M-C tournaments (through 2026-09-17); item Raichunite Y 100%, ability Lightning Rod 95.7%, nature Timid 95.1%; spread 16 hp / 244 spa / 248 spe."
+        "notes": "11.5% usage across 3,143 teams in 40 M-C tournaments (through 2026-09-17); item Raichunite Y 100%, ability Lightning Rod 95.9%, nature Timid 94.4%; spread 16 hp / 244 spa / 248 spe."
+      },
+      {
+        "species": "Sylveon",
+        "role": "Special attacker",
+        "tier": "B",
+        "rank": 16,
+        "usage": 10.9,
+        "item": "Fairy Feather",
+        "ability": "Pixilate",
+        "nature": "Modest",
+        "evs": {
+          "hp": 244,
+          "def": 16,
+          "spa": 248
+        },
+        "championsPoints": {
+          "hp": 32,
+          "def": 2,
+          "spa": 32
+        },
+        "moves": [
+          "Hyper Voice",
+          "Hyper Beam",
+          "Quick Attack",
+          "Detect"
+        ],
+        "notes": "10.9% usage across 3,143 teams in 40 M-C tournaments (through 2026-09-17); item Fairy Feather 92.4%, ability Pixilate 99.1%, nature Modest 92.4%; spread 244 hp / 16 def / 248 spa."
       },
       {
         "species": "Archaludon",
@@ -411,13 +492,19 @@ export default {
           "spd": 232,
           "spe": 32
         },
+        "championsPoints": {
+          "hp": 32,
+          "spa": 1,
+          "spd": 29,
+          "spe": 4
+        },
         "moves": [
           "Electro Shot",
           "Protect",
           "Dragon Pulse",
           "Flash Cannon"
         ],
-        "notes": "10.4% usage across 2,994 teams in 38 M-C tournaments (through 2026-09-17); item Leftovers 90.7%, ability Stamina 96.5%, nature Modest 53.7%; spread 236 hp / 8 spa / 232 spd / 32 spe."
+        "notes": "10.4% usage across 3,143 teams in 40 M-C tournaments (through 2026-09-17); item Leftovers 90.5%, ability Stamina 96.6%, nature Modest 52.8%; spread 236 hp / 8 spa / 232 spd / 32 spe."
       },
       {
         "species": "Charizard",
@@ -425,7 +512,7 @@ export default {
         "role": "Mega Sun setter",
         "tier": "B",
         "rank": 18,
-        "usage": 10.1,
+        "usage": 9.9,
         "item": "Charizardite Y",
         "ability": "Blaze",
         "megaAbility": "Drought",
@@ -435,20 +522,25 @@ export default {
           "spa": 244,
           "spe": 248
         },
+        "championsPoints": {
+          "hp": 2,
+          "spa": 32,
+          "spe": 32
+        },
         "moves": [
           "Heat Wave",
           "Protect",
           "Weather Ball",
           "Ancient Power"
         ],
-        "notes": "10.1% usage across 2,994 teams in 38 M-C tournaments (through 2026-09-17); item Charizardite Y 100%, ability Blaze 85.6%, nature Modest 68.5%; spread 16 hp / 244 spa / 248 spe."
+        "notes": "9.9% usage across 3,143 teams in 40 M-C tournaments (through 2026-09-17); item Charizardite Y 100%, ability Blaze 85.8%, nature Modest 67.7%; spread 16 hp / 244 spa / 248 spe."
       },
       {
         "species": "Milotic",
         "role": "Special attacker",
         "tier": "B",
         "rank": 19,
-        "usage": 9.5,
+        "usage": 9.7,
         "item": "Leftovers",
         "ability": "Competitive",
         "nature": "Calm",
@@ -457,13 +549,18 @@ export default {
           "def": 248,
           "spd": 16
         },
+        "championsPoints": {
+          "hp": 32,
+          "def": 32,
+          "spd": 2
+        },
         "moves": [
           "Protect",
           "Scald",
           "Ice Beam",
           "Icy Wind"
         ],
-        "notes": "9.5% usage across 2,994 teams in 38 M-C tournaments (through 2026-09-17); item Leftovers 63.4%, ability Competitive 100%, nature Calm 36.3%; spread 244 hp / 248 def / 16 spd."
+        "notes": "9.7% usage across 3,143 teams in 40 M-C tournaments (through 2026-09-17); item Leftovers 63.3%, ability Competitive 100%, nature Calm 34.4%; spread 244 hp / 248 def / 16 spd."
       },
       {
         "species": "Gardevoir",
@@ -471,7 +568,7 @@ export default {
         "role": "Mega Trick Room setter",
         "tier": "B",
         "rank": 20,
-        "usage": 8.2,
+        "usage": 8.4,
         "item": "Gardevoirite",
         "ability": "Trace",
         "megaAbility": "Pixilate",
@@ -481,13 +578,18 @@ export default {
           "spa": 244,
           "spe": 248
         },
+        "championsPoints": {
+          "hp": 2,
+          "spa": 32,
+          "spe": 32
+        },
         "moves": [
           "Protect",
           "Hyper Voice",
           "Expanding Force",
           "Trick Room"
         ],
-        "notes": "8.2% usage across 2,994 teams in 38 M-C tournaments (through 2026-09-17); item Gardevoirite 100%, ability Trace 72.3%, nature Modest 79.3%; spread 16 hp / 244 spa / 248 spe."
+        "notes": "8.4% usage across 3,143 teams in 40 M-C tournaments (through 2026-09-17); item Gardevoirite 100%, ability Trace 73.8%, nature Modest 79.6%; spread 16 hp / 244 spa / 248 spe."
       },
       {
         "species": "Tyranitar",
@@ -495,7 +597,7 @@ export default {
         "role": "Mega Sand setter",
         "tier": "B",
         "rank": 21,
-        "usage": 8,
+        "usage": 7.8,
         "item": "Tyranitarite",
         "ability": "Sand Stream",
         "megaAbility": "Sand Stream",
@@ -505,13 +607,18 @@ export default {
           "atk": 244,
           "spe": 248
         },
+        "championsPoints": {
+          "hp": 2,
+          "atk": 32,
+          "spe": 32
+        },
         "moves": [
-          "Rock Slide",
           "Knock Off",
+          "Rock Slide",
           "Protect",
           "Low Kick"
         ],
-        "notes": "8% usage across 2,994 teams in 38 M-C tournaments (through 2026-09-17); item Tyranitarite 100%, ability Sand Stream 100%, nature Adamant 56.5%; spread 16 hp / 244 atk / 248 spe."
+        "notes": "7.8% usage across 3,143 teams in 40 M-C tournaments (through 2026-09-17); item Tyranitarite 100%, ability Sand Stream 100%, nature Adamant 56.4%; spread 16 hp / 244 atk / 248 spe."
       },
       {
         "species": "Lucario",
@@ -519,7 +626,7 @@ export default {
         "role": "Mega Special setup sweeper",
         "tier": "B",
         "rank": 22,
-        "usage": 7.1,
+        "usage": 6.9,
         "item": "Lucarionite Z",
         "ability": "Inner Focus",
         "megaAbility": "Adaptability",
@@ -529,20 +636,25 @@ export default {
           "spa": 244,
           "spe": 248
         },
+        "championsPoints": {
+          "hp": 2,
+          "spa": 32,
+          "spe": 32
+        },
         "moves": [
           "Aura Sphere",
           "Flash Cannon",
           "Protect",
           "Calm Mind"
         ],
-        "notes": "7.1% usage across 2,994 teams in 38 M-C tournaments (through 2026-09-17); item Lucarionite Z 100%, ability Inner Focus 85.8%, nature Timid 60.8%; spread 16 hp / 244 spa / 248 spe."
+        "notes": "6.9% usage across 3,143 teams in 40 M-C tournaments (through 2026-09-17); item Lucarionite Z 100%, ability Inner Focus 86.1%, nature Timid 61.1%; spread 16 hp / 244 spa / 248 spe."
       },
       {
         "species": "Sinistcha",
         "role": "Trick Room setter",
         "tier": "B",
         "rank": 23,
-        "usage": 6.8,
+        "usage": 6.7,
         "item": "Sitrus Berry",
         "ability": "Hospitality",
         "nature": "Bold",
@@ -551,35 +663,47 @@ export default {
           "def": 112,
           "spd": 160
         },
+        "championsPoints": {
+          "hp": 32,
+          "def": 14,
+          "spd": 20
+        },
         "moves": [
           "Rage Powder",
           "Matcha Gotcha",
           "Trick Room",
           "Protect"
         ],
-        "notes": "6.8% usage across 2,994 teams in 38 M-C tournaments (through 2026-09-17); item Sitrus Berry 26.6%, ability Hospitality 99.5%, nature Bold 43.3%; spread 236 hp / 112 def / 160 spd."
+        "notes": "6.7% usage across 3,143 teams in 40 M-C tournaments (through 2026-09-17); item Sitrus Berry 26.7%, ability Hospitality 99.5%, nature Bold 42.9%; spread 236 hp / 112 def / 160 spd."
       },
       {
-        "species": "Whimsicott",
-        "role": "Prankster support",
+        "species": "Froslass",
+        "megaForm": "Froslass-Mega",
+        "role": "Mega Snow setter",
         "tier": "B",
         "rank": 24,
-        "usage": 6.5,
-        "item": "Focus Sash",
-        "ability": "Prankster",
+        "usage": 6.6,
+        "item": "Froslassite",
+        "ability": "Cursed Body",
+        "megaAbility": "Snow Warning",
         "nature": "Timid",
         "evs": {
           "hp": 16,
           "spa": 244,
           "spe": 248
         },
+        "championsPoints": {
+          "hp": 2,
+          "spa": 32,
+          "spe": 32
+        },
         "moves": [
-          "Tailwind",
-          "Moonblast",
-          "Encore",
-          "Protect"
+          "Blizzard",
+          "Protect",
+          "Shadow Ball",
+          "Aurora Veil"
         ],
-        "notes": "6.5% usage across 2,994 teams in 38 M-C tournaments (through 2026-09-17); item Focus Sash 86.2%, ability Prankster 100%, nature Timid 79.5%; spread 16 hp / 244 spa / 248 spe."
+        "notes": "6.6% usage across 3,143 teams in 40 M-C tournaments (through 2026-09-17); item Froslassite 100%, ability Cursed Body 84.8%, nature Timid 76.5%; spread 16 hp / 244 spa / 248 spe."
       }
     ]
   }

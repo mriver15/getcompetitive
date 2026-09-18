@@ -46,6 +46,8 @@ export interface Threat {
   nature: string;
   /** Most-played spread, in the 0-252 scale the calculate_* tools take. */
   evs?: Record<string, number>;
+  /** The same spread in Champions stat points (0-32 each, 66 total), as the source publishes it. */
+  championsPoints?: Record<string, number>;
   /** The four most-played moves. */
   moves: string[];
   /** Usage figures behind the set, e.g. "54.2% usage across 2,994 teams …". */

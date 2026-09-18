@@ -228,6 +228,21 @@ for (const threat of threats) {
 }
 console.log(`=== ${threats.length} generated sets all pass check_legality ===`);
 
+// The paste is the artefact a player copies into the game, so it must be written
+// in Champions stat points (0-32 each, 66 total) — never the 0-252 calc scale.
+const pasteSet = await client.callTool({ name: 'get_set', arguments: { species: 'Rillaboom' } });
+const paste = pasteSet.structuredContent?.paste ?? '';
+const evLine = paste.split('\n').find((l) => l.startsWith('EVs:')) ?? '';
+const evPoints = (evLine.match(/\d+/g) ?? []).map(Number);
+if (!evLine || evPoints.some((n) => n > 32) || evPoints.reduce((a, b) => a + b, 0) > 66) {
+  console.log(`=== paste EVs are not in Champions points: ${JSON.stringify(evLine)} ===`);
+  failed++;
+}
+if (!/- Fake Out/.test(paste)) {
+  console.log('=== paste is missing its move lines ===');
+  failed++;
+}
+
 console.log(failed === 0 ? '\nALL PASS' : `\n${failed} FAILURES`);
 await client.close();
 process.exit(failed === 0 ? 0 : 1);

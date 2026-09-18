@@ -34,6 +34,8 @@ const API = 'https://www.munchstats.com';
 const LADDER = 'championsdoubles';
 const UA = 'getcompetitive-threats/1.0 (+https://github.com/mriver15/getcompetitive)';
 
+/** Stat ids in the order the source writes a spread: hp/atk/def/spa/spd/spe. */
+const EV_STATS = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'];
 /** EV per Champions stat point: 32 points is the per-stat maximum, 252 the EV cap. */
 const EV_PER_POINT = 8;
 /** Total EV budget the calculate_* tools enforce. */
@@ -113,6 +115,21 @@ function groupBySpecies(pairs) {
   return [...groups.values()].sort((a, b) => b.total - a.total);
 }
 
+/**
+ * The same spread in Champions' own stat points, dropping stats left at 0. This
+ * is the authoritative form — the game's training screen takes it, and it is
+ * what the 252-scale `evs` above was derived from, so it survives the trim that
+ * fitting the 510 EV budget forces.
+ */
+function toPoints(spec) {
+  const points = {};
+  spec.split('/').forEach((p, i) => {
+    const n = Number(p);
+    if (n > 0) points[EV_STATS[i]] = n;
+  });
+  return points;
+}
+
 /** Convert a Champions stat-point spread to the 252-scale the calc tools take. */
 function toEvs(spec) {
   const evs = spec.split('/').map((p) => Math.min(252, Number(p) * EV_PER_POINT));
@@ -123,8 +140,7 @@ function toEvs(spec) {
     if (evs[largest] === 0) break;
     evs[largest] -= 4;
   }
-  const keys = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'];
-  return Object.fromEntries(keys.map((k, i) => [k, evs[i]]).filter(([, v]) => v > 0));
+  return Object.fromEntries(EV_STATS.map((k, i) => [k, evs[i]]).filter(([, v]) => v > 0));
 }
 
 /** First entry of a `[name, percent]` distribution, as `{ name, usage }`. */
@@ -278,10 +294,14 @@ for (const [i, g] of groups.entries()) {
   // The spread is the only field the tournament data lacks; fall back to the
   // in-game ladder, which publishes it in Champions stat points.
   let evs;
+  let championsPoints;
   try {
     const ladder = await getJson(`/api/${LADDER}/0/${encodeURIComponent(g.base)}`);
     const spread = ladder.spreads_list?.[0]?.[0];
-    if (spread) evs = toEvs(spread);
+    if (spread) {
+      evs = toEvs(spread);
+      championsPoints = toPoints(spread);
+    }
   } catch (err) {
     console.warn(`  ${form}: no spread data (${err.message})`);
   }
@@ -308,7 +328,7 @@ for (const [i, g] of groups.entries()) {
     ability: ability.name,
     ...(mega ? { megaAbility: species.abilities['0'] } : {}),
     nature: nature.name,
-    ...(evs ? { evs } : {}),
+    ...(evs ? { evs, championsPoints } : {}),
     moves,
     notes,
   });
