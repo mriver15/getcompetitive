@@ -3,8 +3,35 @@
  */
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { THREAT_LISTS, getThreatList, findThreat } from '../threats.js';
+import { THREAT_LISTS, getThreatList, findThreat, type Threat } from '../threats.js';
+import { STATS, evsToChampionsPoints } from '../dex.js';
 import { ok, wrap, READ_ONLY_ANNOTATIONS } from '../result.js';
+
+/** Showdown's stat labels, used when writing a paste. */
+const STAT_LABEL: Record<string, string> = { hp: 'HP', atk: 'Atk', def: 'Def', spa: 'SpA', spd: 'SpD', spe: 'Spe' };
+
+/**
+ * One set as a Showdown-format paste — the shape poképaste hosts and team
+ * builders import.
+ *
+ * EVs are written in Champions stat points rather than the 0-252 scale the
+ * calculate_* tools take: that is what the game's training screen shows and what
+ * the community's Champions paste sites publish (a real team page reads "HP 30 /
+ * Atk 32 / Def 31 …", summing to the 66-point budget). A Mega set names the base
+ * species holding its stone, which is the set you actually own.
+ */
+function setPaste(t: Threat): string {
+  const points = t.championsPoints ?? evsToChampionsPoints(t.evs ?? {});
+  const evLine = STATS.filter((s) => points[s]).map((s) => `${points[s]} ${STAT_LABEL[s]}`).join(' / ');
+  return [
+    `${t.megaForm ? t.species : (t.form ?? t.species)} @ ${t.item}`,
+    `Ability: ${t.ability}`,
+    'Level: 50',
+    `${t.nature} Nature`,
+    ...(evLine ? [`EVs: ${evLine}`] : []),
+    ...t.moves.map((m) => `- ${m}`),
+  ].join('\n');
+}
 
 /**
  * One full usage-derived standard set. Shared by `list_threats`' regulation-scoped
@@ -53,6 +80,12 @@ const threatOutput = {
     .optional()
     .describe(
       'Most-played spread, keyed by Showdown stat and scaled to the 0-252 EVs `calculate_stats` and `calculate_damage` take; only invested stats are listed, everything omitted is 0. Absent when the source published no spread for that species.',
+    ),
+  championsPoints: z
+    .record(z.string(), z.number())
+    .optional()
+    .describe(
+      'The same spread in Pok\u00e9mon Champions stat points (whole numbers, at most 32 in a stat, 66 total), which is what the game\u2019s training screen takes and the form the source publishes; `evs` is this converted to the 0-252 scale the calculate_* tools take. Absent when the source published no spread.',
     ),
   moves: z.array(z.string()).describe('The four most-played moves, most played first.'),
   notes: z
@@ -187,7 +220,7 @@ export function registerMetaTools(server: McpServer) {
     {
       title: 'Get standard competitive set',
       description:
-        'Return one species\u2019 most-played competitive set: item, ability (with the Mega form and ability for Mega sets), nature, EVs, the four most-played moves, role, tier, usage share, and the usage figures behind it. Reach for it when asked what a species usually runs; `list_threats` browses a whole regulation and `check_legality` validates teams. Species match is case-insensitive and ignores punctuation, and resolves forms, so "Indeedee-F" and "Salamence-Mega" find the same sets as "Indeedee" and "Salamence"; pass `regulation` (e.g. "m-c") to scope to one list; unknown species return an isError listing every known threat. Usage-derived from Limitless VGC tournament teams, not editorial opinion; read-only, offline, no network or auth.',
+        'Return one species\u2019 most-played competitive set: item, ability (with the Mega form and ability for Mega sets), nature, EVs, the four most-played moves, role, tier, usage share, the usage figures behind it, and the set as a Showdown-format `paste` ready to copy into a team builder or paste host, with EVs in Champions stat points. Reach for it when asked what a species usually runs; `list_threats` browses a whole regulation and `check_legality` validates teams. Species match is case-insensitive and ignores punctuation, and resolves forms, so "Indeedee-F" and "Salamence-Mega" find the same sets as "Indeedee" and "Salamence"; pass `regulation` (e.g. "m-c") to scope to one list; unknown species return an isError listing every known threat. Usage-derived from Limitless VGC tournament teams, not editorial opinion; read-only, offline, no network or auth.',
       annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {
         species: z
@@ -204,6 +237,11 @@ export function registerMetaTools(server: McpServer) {
           .describe('Display name of the list the set came from, e.g. "Regulation Set M-C".'),
         sourceAsOf: z.string().describe('ISO date of the newest data point behind that list.'),
         ...threatOutput,
+        paste: z
+          .string()
+          .describe(
+            'The whole set as a Showdown-format paste, ready to copy into a team builder or paste host: `species @ item`, ability, level 50, nature, EVs in Pok\u00e9mon Champions stat points (0-32 each, 66 total \u2014 what the game\u2019s training screen takes), then the four moves. A Mega set names the base species holding its stone.',
+          ),
       },
     },
     wrap(async (args: { species: string; regulation?: string }) => {
@@ -216,6 +254,7 @@ export function registerMetaTools(server: McpServer) {
         regulation: hit.list.name,
         sourceAsOf: hit.list.sourceAsOf,
         ...hit.threat,
+        paste: setPaste(hit.threat),
       });
     }),
   );

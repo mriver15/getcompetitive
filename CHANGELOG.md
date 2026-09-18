@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`get_set` returns the set as a Showdown-format `paste`**, ready to copy into
+  a team builder or paste host — `species @ item`, ability, level 50, nature, EVs
+  and the four moves. EVs are written in **Champions stat points**, the scale the
+  game's training screen and the community's Champions paste sites use, verified
+  against a published team page rather than assumed.
+- Threats now carry **both scales**: `championsPoints` (0-32 each, 66 total — the
+  form the source publishes and the game takes) alongside `evs` (the 0-252 scale
+  the `calculate_*` tools take). The point spread is stored rather than derived,
+  so a spread trimmed to fit the calculator's 510 EV budget no longer reads back
+  a point under: Rillaboom's maxed HP/Atk pair is 32/32, not 31/31.
+
 ## [3.0.0] - 2026-09-18
 
 ### Removed
