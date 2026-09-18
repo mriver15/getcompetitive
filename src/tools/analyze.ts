@@ -17,17 +17,13 @@ export function registerAnalyzeTools(server: McpServer) {
     {
       title: 'Analyze team synergy',
       description:
-        'Analyze a whole team\u2019s type synergy: per-type weak, resist, and immune counts with the types at risk, super-effective coverage from STAB, Tera type and supplied moves, speed placement, and a transparent 0-100 heuristic score \u2014 a quick signal, not a metagame rating. With `regulation` it also reports `threatCoverage`: how the team fares against that regulation\u2019s most-used sets, each threat\u2019s real nature, EVs and Mega form included, listing the threats nothing on the team hits super-effectively. Use `get_type_matchup` or `get_type` for one matchup. Each entry is a `species` with optional `teraType`, `moves`, `nature`, `evs`/`championsPoints` and `item`; unknown moves are collected into `unknownMoves`, unknown species or Tera types error. Read-only and offline over the bundled dataset.',
+        'Analyze a whole team\u2019s type synergy: per-type weak, resist, and immune counts with the types at risk, super-effective coverage from STAB and supplied moves, speed placement, and a transparent 0-100 heuristic score \u2014 a quick signal, not a metagame rating. With `regulation` it also reports `threatCoverage`: how the team fares against that regulation\u2019s most-used sets, each threat\u2019s real nature, EVs and Mega form included, listing the threats nothing on the team hits super-effectively. Use `get_type_matchup` or `get_type` for one matchup. Each entry is a `species` with optional `moves`, `nature`, `evs`/`championsPoints` and `item`; unknown moves are collected into `unknownMoves`, unknown species error. Read-only and offline over the bundled dataset.',
       annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {
         team: z
           .array(
             z.object({
               species: z.string().describe('Species name as it appears in Showdown, e.g. "Incineroar", "Garchomp".'),
-              teraType: z
-                .string()
-                .optional()
-                .describe('Optional Tera type, e.g. "Steel"; when set it replaces the member\u2019s defensive typing in the weakness tally.'),
               moves: z
                 .array(z.string())
                 .optional()
@@ -50,7 +46,7 @@ export function registerAnalyzeTools(server: McpServer) {
           )
           .min(1)
           .max(6)
-          .describe('Team of up to 6 members, each a species with optional Tera type and moves.'),
+          .describe('Team of up to 6 members, each a species with optional moves and a set.'),
         regulation: z
           .string()
           .optional()
@@ -62,10 +58,6 @@ export function registerAnalyzeTools(server: McpServer) {
             z.object({
               species: z.string().describe('Resolved species name, e.g. "Great Tusk".'),
               types: z.array(z.string()).describe('The species\u2019 types as the dataset defines them, e.g. ["Ground", "Fighting"].'),
-              teraType: z
-                .string()
-                .optional()
-                .describe('Tera type supplied for this member; when set it replaces the member\u2019s typing defensively and is added to its attacking types. Absent when none was given.'),
               baseSpe: z.number().int().describe('Base Speed stat of the species, used for the speed placement below.'),
               moveTypes: z
                 .array(z.string())
@@ -84,7 +76,7 @@ export function registerAnalyzeTools(server: McpServer) {
             }),
           )
           .describe(
-            'One entry for each of the 18 classic types (keyed by type name, e.g. "Fire"), tallying how the team fares defensively against that type. A member is counted on its Tera type instead of its own types when a Tera type was supplied.',
+            'One entry for each of the 18 classic types (keyed by type name, e.g. "Fire"), tallying how the team fares defensively against that type.',
           ),
         atRiskTypes: z
           .array(z.string())
@@ -94,7 +86,7 @@ export function registerAnalyzeTools(server: McpServer) {
             coveredBy: z
               .record(z.string(), z.array(z.string()))
               .describe(
-                'One entry for each of the 18 classic types (keyed by the defending type), listing the team members that hit it super-effectively from STAB, Tera type, or a supplied move type; an empty array means nobody does.',
+                'One entry for each of the 18 classic types (keyed by the defending type), listing the team members that hit it super-effectively from STAB or a supplied move type; an empty array means nobody does.',
               ),
             uncoveredSuperEffectively: z.array(z.string()).describe('Defending types no member hits super-effectively.'),
             note: z.string().describe('Reminder of which attacking types this coverage was computed from.'),
@@ -151,7 +143,7 @@ export function registerAnalyzeTools(server: McpServer) {
                 threatSpeed: z.number().int().describe('Its Speed at level 50 with its own nature, EVs and Mega form.'),
                 fastestSpeed: z.number().int().describe('Your fastest member\u2019s Speed at level 50 with the sets you supplied.'),
                 outspeed: z.boolean().describe('True when your fastest member moves first.'),
-                hitMultiplier: z.number().describe('Best type multiplier your team has against it, from STAB, Tera type and supplied moves; 0 when nothing can hit it at all.'),
+                hitMultiplier: z.number().describe('Best type multiplier your team has against it, from STAB and supplied moves; 0 when nothing can hit it at all.'),
                 hitBy: z.string().optional().describe('The member providing that best hit; absent when nothing hits it super-effectively.'),
                 hitVia: z.string().optional().describe('The attacking type providing it; absent when nothing hits it super-effectively.'),
                 answered: z.boolean().describe('True when the team has a super-effective (\u22652x) hit on it.'),
@@ -190,7 +182,6 @@ export function registerAnalyzeTools(server: McpServer) {
       async (args: {
         team: {
           species: string;
-          teraType?: string;
           moves?: string[];
           nature?: string;
           evs?: Record<string, number>;
@@ -209,7 +200,6 @@ export function registerAnalyzeTools(server: McpServer) {
         const members: {
           species: string;
           types: string[];
-          teraType?: string;
           baseSpe: number;
           speed: number;
           moveTypes: string[];
@@ -227,10 +217,6 @@ export function registerAnalyzeTools(server: McpServer) {
             else unknownMoves.push(mv);
           }
 
-          if (entry.teraType && !dex.types.get(entry.teraType).exists) {
-            throw new Error(`Unknown Tera type "${entry.teraType}".`);
-          }
-
           // Real Speed at level 50 from whatever set was supplied, so the threat
           // comparison below uses the spread the player actually runs rather than a
           // base-stat assumption. Choice Scarf is the only item that changes Speed.
@@ -244,7 +230,6 @@ export function registerAnalyzeTools(server: McpServer) {
           members.push({
             species: sp.name,
             types: [...sp.types],
-            teraType: entry.teraType,
             baseSpe: sp.baseStats.spe,
             speed: item?.name === 'Choice Scarf' ? Math.floor(baseSpeed * 1.5) : baseSpeed,
             moveTypes,
@@ -259,9 +244,7 @@ export function registerAnalyzeTools(server: McpServer) {
           let immune = 0;
           const weakBy: string[] = [];
           for (const m of members) {
-            // Tera replaces defensive typing entirely.
-            const defTypes = m.teraType ? [m.teraType] : m.types;
-            const eff = typeEffectiveness(t, defTypes, 9);
+            const eff = typeEffectiveness(t, m.types, 9);
             if (eff === 0) immune++;
             else if (eff > 1) {
               weak++;
@@ -282,7 +265,6 @@ export function registerAnalyzeTools(server: McpServer) {
           const hitters: string[] = [];
           for (const m of members) {
             const atkTypes = new Set([...m.types, ...m.moveTypes]);
-            if (m.teraType) atkTypes.add(m.teraType);
             for (const atk of atkTypes) {
               if (typeEffectiveness(atk, [def], 9) > 1) {
                 hitters.push(m.species);
@@ -320,7 +302,6 @@ export function registerAnalyzeTools(server: McpServer) {
           let best: { member: string; multiplier: number; via: string } | undefined;
           for (const m of members) {
             const atkTypes = new Set([...m.types, ...m.moveTypes]);
-            if (m.teraType) atkTypes.add(m.teraType);
             for (const atk of atkTypes) {
               const eff = typeEffectiveness(atk, threatSpecies.types, 9);
               if (!best || eff > best.multiplier) best = { member: m.species, multiplier: eff, via: atk };
@@ -358,7 +339,6 @@ export function registerAnalyzeTools(server: McpServer) {
           team: members.map((m) => ({
             species: m.species,
             types: m.types,
-            teraType: m.teraType,
             baseSpe: m.baseSpe,
             moveTypes: m.moveTypes,
           })),
@@ -367,7 +347,7 @@ export function registerAnalyzeTools(server: McpServer) {
           offensiveCoverage: {
             coveredBy: coverage,
             uncoveredSuperEffectively: uncovered,
-            note: 'Coverage is computed from STAB types, Tera type, and any provided move types.',
+            note: 'Coverage is computed from STAB types and any provided move types.',
           },
           speed: {
             fastest,
@@ -389,7 +369,7 @@ export function registerAnalyzeTools(server: McpServer) {
                   threats: threatCoverage,
                   unanswered,
                   unansweredCount: unanswered.length,
-                  note: 'Each threat is checked against the set the meta actually plays \u2014 its own nature, EVs, item and Mega form \u2014 so `outspeed` compares real Speed at level 50 rather than base stats. `answered` means the team has a super-effective (\u22652x) hit from STAB, Tera type, or a supplied move; it does not model damage rolls, bulk, or whether you survive the return hit.',
+                  note: 'Each threat is checked against the set the meta actually plays \u2014 its own nature, EVs, item and Mega form \u2014 so `outspeed` compares real Speed at level 50 rather than base stats. `answered` means the team has a super-effective (\u22652x) hit from STAB or a supplied move; it does not model damage rolls, bulk, or whether you survive the return hit.',
                 },
               }
             : {}),

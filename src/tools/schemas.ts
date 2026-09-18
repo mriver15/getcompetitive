@@ -4,16 +4,6 @@
  */
 import { z } from 'zod';
 
-export const genSchema = z
-  .number()
-  .int()
-  .min(1)
-  .max(9)
-  .default(9)
-  .describe(
-    'Generation whose data to use, 1-9 (default 9). Earlier generations omit moves, items, abilities, and forms that did not exist yet.',
-  );
-
 export const evMap = z
   .record(z.string(), z.number())
   .optional()

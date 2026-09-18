@@ -76,7 +76,7 @@ export function registerRegulationTools(server: McpServer) {
     {
       title: 'List regulation sets',
       description:
-        'List every Pokémon Champions / VGC Regulation Set with its id, dates, status, and roster size. Takes no arguments; status is relative to today and the active set is also returned as `currentSet` (null when none is). Use `get_regulation` for one set\'s full rules and roster, `check_legality` to validate a team, and `list_tiers` or `list_speed_tiers` for Smogon tiers instead. Read-only and offline over the bundled regulation data — no network, auth, or rate limits; returns `game`, `currentSet`, and one summary per set (id, name, status, start, end, eligibleCount, megaCount, notes).',
+        'List every Pokémon Champions / VGC Regulation Set with its id, dates, status, and roster size. Takes no arguments; status is relative to today and the active set is also returned as `currentSet` (null when none is). Use `get_regulation` for one set\'s full rules and roster, `check_legality` to validate a team. Read-only and offline over the bundled regulation data — no network, auth, or rate limits; returns `game`, `currentSet`, and one summary per set (id, name, status, start, end, eligibleCount, megaCount, notes).',
       annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {},
       outputSchema: {

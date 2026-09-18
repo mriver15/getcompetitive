@@ -4,10 +4,10 @@
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Move as CalcMove, calculate } from '@smogon/calc';
-import { normalizeGen, getDex, statTable, damageResult, finalStat, buildPokemon, buildField, getCalcGen, resolveEvs, evsToChampionsPoints, STATS, type SetInput } from '../dex.js';
+import { getDex, statTable, damageResult, finalStat, buildPokemon, buildField, getCalcGen, resolveEvs, evsToChampionsPoints, STATS, type SetInput } from '../dex.js';
 import { getRegulationSet } from '../regulations.js';
 import { ok, wrap, requireExists, READ_ONLY_ANNOTATIONS } from '../result.js';
-import { genSchema, evMap, championsPointsMap } from './schemas.js';
+import { evMap, championsPointsMap } from './schemas.js';
 
 const ivMap = z
   .record(z.string(), z.number())
@@ -50,7 +50,6 @@ const setSchema = z.object({
     .string()
     .optional()
     .describe('Pre-existing status such as "brn", "par", or "tox"; burn halves physical damage, paralysis cuts Speed.'),
-  teraType: z.string().optional().describe('Tera type to use when the move is Terastallized, e.g. "Fairy".'),
   abilityOn: z
     .boolean()
     .optional()
@@ -94,11 +93,11 @@ function statBlock(label: string, description: string) {
     .describe(description);
 }
 
-/** EV map as `summarizeSet` builds it: unused stats are omitted, and generations 1-2 fix all six at 252. */
+/** EV map as `summarizeSet` builds it: unused stats are omitted. */
 const reportedEvs = z
   .record(z.string(), z.number())
   .describe(
-    'EVs the set was calculated with, keyed by stat id (hp, atk, def, spa, spd, spe) with stats left at 0 omitted; generations 1-2 fix all six at 252 when the call supplies none.',
+    'EVs the set was calculated with, keyed by stat id (hp, atk, def, spa, spd, spe) with stats left at 0 omitted.',
   );
 
 /** The same spread expressed in Champions stat points, for entry into the game. */
@@ -128,7 +127,6 @@ const damageSetSchema = z.object({
     .string()
     .optional()
     .describe('Ability used: the one supplied, else the species\u2019 first ability; absent for a species with no abilities.'),
-  teraType: z.string().optional().describe('Tera type echoed back when the call supplied one; absent otherwise.'),
   status: z.string().optional().describe('Pre-existing status such as "brn", "par", or "tox"; absent when the set entered healthy.'),
   boosts: statBlock('Stat stage for', 'Stat stages in effect for the calculation; all six keys are present with 0 for unboosted stats.'),
   stats: statBlock('Final', 'The six stats of this set at its level, IVs, EVs, and nature; stat stages are applied inside the damage mechanics, so they are not folded in here.'),
@@ -152,11 +150,9 @@ export function registerCalcTools(server: McpServer) {
         evs: evMap,
         championsPoints: championsPointsMap,
         ivs: ivMap,
-        generation: genSchema,
       },
       outputSchema: {
         species: z.string().describe('Canonical species name the stats belong to, e.g. "Garchomp".'),
-        generation: z.number().int().describe('Generation whose base stats and mechanics were used, 1-9.'),
         level: z.number().int().describe('Level the stats were computed at, 1-100.'),
         nature: z.string().describe('Nature applied to the non-HP stats, e.g. "Jolly"; Serious when the call omitted one.'),
         baseStats: statBlock('Base', 'The species\u2019 unmodified base stats, the same for every set of that species.'),
@@ -175,9 +171,8 @@ export function registerCalcTools(server: McpServer) {
         evs?: Record<string, number>;
         championsPoints?: Record<string, number>;
         ivs?: Record<string, number>;
-        generation: number;
       }) => {
-        const gen = normalizeGen(args.generation);
+        const gen = 9;
         const dex = getDex(gen);
         const s = dex.species.get(args.species);
         requireExists(s, 'Pokemon species', args.species);
@@ -201,7 +196,6 @@ export function registerCalcTools(server: McpServer) {
         const stats = statTable(gen, s.baseStats, args.level, ivs, evs, nature);
         return ok({
           species: s.name,
-          generation: gen,
           level: args.level,
           nature: nature,
           baseStats: s.baseStats,
@@ -223,7 +217,7 @@ export function registerCalcTools(server: McpServer) {
         'Simulate one attack end to end: one attacker set, one defender set, one named move, optionally under weather, terrain, game type, or side conditions. Use `calculate_matchups` when one attacker must be tested against several defenders, and `calculate_stats` for stat tables with no battle. `field.weather` takes Sand/Sun/Rain/Hail/Snow and `field.terrain` Electric/Grassy/Psychic/Misty; `attackerSide`/`defenderSide` take calc flags (isReflect, isLightScreen, isAuroraVeil, spikes 0-3, isSR), and set levels default to 100 here. Species and move names are validated first, so typos return an isError. Returns every damage roll, damageRange, koChance text, a description line, and both sets\u2019 computed stats. Read-only and offline.',
       annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {
-        attacker: setSchema.describe('The attacking Pok\u00e9mon: species plus optional level, nature, IVs, EVs, item, ability, boosts, status, Tera type, and current HP.'),
+        attacker: setSchema.describe('The attacking Pok\u00e9mon: species plus optional level, nature, IVs, EVs, item, ability, boosts, status, and current HP.'),
         defender: setSchema.describe('The defending Pok\u00e9mon, same fields as `attacker`; its Defense/SpD, HP, typing, and ability drive the result.'),
         move: z.string().describe('Move used by the attacker, e.g. "Earthquake", "Make It Rain"; must be a real move name.'),
         field: z
@@ -242,10 +236,8 @@ export function registerCalcTools(server: McpServer) {
           })
           .optional()
           .describe('Battlefield conditions applied to the calc; omit it for a neutral Singles field with no weather, terrain, or hazards.'),
-        generation: genSchema,
       },
       outputSchema: {
-        generation: z.number().int().describe('Generation whose data and mechanics were used, 1-9.'),
         attacker: damageSetSchema.describe('The attacking set as the calc resolved it, including the six stats it swung with.'),
         defender: damageSetSchema.describe('The defending set as the calc resolved it, including the six stats it was hit on.'),
         move: z.string().describe('Canonical move name that was calculated, e.g. "Dragon Claw".'),
@@ -281,7 +273,6 @@ export function registerCalcTools(server: McpServer) {
           ability?: string;
           boosts?: Record<string, number>;
           status?: string;
-          teraType?: string;
           abilityOn?: boolean;
           isDynamaxed?: boolean;
           curHP?: number;
@@ -296,7 +287,6 @@ export function registerCalcTools(server: McpServer) {
           ability?: string;
           boosts?: Record<string, number>;
           status?: string;
-          teraType?: string;
           abilityOn?: boolean;
           isDynamaxed?: boolean;
           curHP?: number;
@@ -309,9 +299,8 @@ export function registerCalcTools(server: McpServer) {
           attackerSide?: Record<string, unknown>;
           defenderSide?: Record<string, unknown>;
         };
-        generation: number;
       }) => {
-        const gen = normalizeGen(args.generation);
+        const gen = 9;
         // Validate species + move names for helpful errors before the calc throws.
         const dex = getDex(gen);
         requireExists(dex.species.get(args.attacker.species), 'Pokemon species', args.attacker.species);
@@ -353,10 +342,8 @@ export function registerCalcTools(server: McpServer) {
           })
           .optional()
           .describe('Shared battlefield conditions for every matchup; omit for a neutral Singles field. Side hazards and screens are only available on `calculate_damage`.'),
-        generation: genSchema,
       },
       outputSchema: {
-        generation: z.number().int().describe('Generation whose data and mechanics were used, 1-9.'),
         attacker: z.string().describe('Canonical species name of the single attacker every matchup was run with.'),
         move: z
           .string()
@@ -368,7 +355,7 @@ export function registerCalcTools(server: McpServer) {
               bestMove: z
                 .string()
                 .nullable()
-                .describe('The hardest-hitting move of the supplied move set against this defender, or null when none of them could be calculated (e.g. every move is unsupported in this generation).'),
+                .describe('The hardest-hitting move of the supplied move set against this defender, or null when none of them could be calculated (e.g. every move is unsupported in the dataset).'),
               damageRange: damageRangeSchema,
               koChance: z
                 .string()
@@ -406,7 +393,6 @@ export function registerCalcTools(server: McpServer) {
           ability?: string;
           boosts?: Record<string, number>;
           status?: string;
-          teraType?: string;
           moves?: string[];
         };
         move?: string;
@@ -420,12 +406,10 @@ export function registerCalcTools(server: McpServer) {
           ability?: string;
           boosts?: Record<string, number>;
           status?: string;
-          teraType?: string;
         }[];
         field?: { gameType?: 'Singles' | 'Doubles'; weather?: string; terrain?: string };
-        generation: number;
       }) => {
-        const gen = normalizeGen(args.generation);
+        const gen = 9;
         const dex = getDex(gen);
         requireExists(dex.species.get(args.attacker.species), 'Pokemon species', args.attacker.species);
 
@@ -504,7 +488,6 @@ export function registerCalcTools(server: McpServer) {
         }
 
         return ok({
-          generation: gen,
           attacker: attacker.name,
           move: args.move ?? 'best of moveset',
           matchups,
@@ -518,7 +501,7 @@ export function registerCalcTools(server: McpServer) {
     {
       title: 'Check Speed against a regulation',
       description:
-        'Compute one Pok\u00e9mon\u2019s final Speed and, given a Regulation Set, rank it against that roster at its fastest (252 EV, +Spe nature) and uninvested reference speeds. Speed only: for damage use `calculate_damage` or `calculate_matchups`, for a tier-wide ranking use `list_speed_tiers`, and to find the Speed EVs that beat a target use `optimize_evs`. Applies `boosts.spe` (-6..+6) and Choice Scarf \u00d71.5; other items are reported as Speed-neutral, and `regulation` is optional. Returns finalSpeed, modifiers, and outspeeds/conditional/losesTo counts with up to 15 threats each. Read-only and offline; unknown names return an isError.',
+        'Compute one Pok\u00e9mon\u2019s final Speed and, given a Regulation Set, rank it against that roster at its fastest (252 EV, +Spe nature) and uninvested reference speeds. Speed only: for damage use `calculate_damage` or `calculate_matchups`, and to find the Speed EVs that beat a target use `optimize_evs`. Applies `boosts.spe` (-6..+6) and Choice Scarf \u00d71.5; other items are reported as Speed-neutral, and `regulation` is optional. Returns finalSpeed, modifiers, and outspeeds/conditional/losesTo counts with up to 15 threats each. Read-only and offline; unknown names return an isError.',
       annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {
         species: z.string().describe('Species or form name, e.g. "Dragapult", "Ogerpon-Wellspring".'),
@@ -535,11 +518,9 @@ export function registerCalcTools(server: McpServer) {
           .string()
           .optional()
           .describe('Regulation Set name or id from `list_regulations` to compare against, e.g. "Regulation Set G"; omit to get the raw Speed only.'),
-        generation: genSchema,
       },
       outputSchema: {
         species: z.string().describe('Canonical species name the Speed belongs to, e.g. "Dragapult".'),
-        generation: z.number().int().describe('Generation whose base stats and mechanics were used, 1-9.'),
         level: z.number().int().describe('Level the Speed was computed at, 1-100.'),
         nature: z.string().describe('Nature applied Speed, e.g. "Jolly" for +Spe; Serious when the call omitted one.'),
         baseSpe: z.number().describe('The species\u2019 base Speed stat, before level, IVs, EVs, nature, item, and boosts.'),
@@ -615,9 +596,8 @@ export function registerCalcTools(server: McpServer) {
         boosts?: Record<string, number>;
         item?: string;
         regulation?: string;
-        generation: number;
       }) => {
-        const gen = normalizeGen(args.generation);
+        const gen = 9;
         const dex = getDex(gen);
         const sp = dex.species.get(args.species);
         requireExists(sp, 'Pokemon species', args.species);
@@ -688,7 +668,6 @@ export function registerCalcTools(server: McpServer) {
 
         return ok({
           species: sp.name,
-          generation: gen,
           level: args.level,
           nature,
           baseSpe: sp.baseStats.spe,
@@ -755,11 +734,9 @@ export function registerCalcTools(server: McpServer) {
           })
           .optional()
           .describe('Battlefield conditions applied while testing the survive and kill goals; omit for a neutral Singles field.'),
-        generation: genSchema,
       },
       outputSchema: {
         species: z.string().describe('Canonical species name the spread was solved for.'),
-        generation: z.number().int().describe('Generation whose data and mechanics were used, 1-9.'),
         level: z.number().int().describe('Level every stat was computed at, 1-100.'),
         nature: z.string().describe('Nature the spread was solved with, e.g. "Adamant"; Serious when the call omitted one.'),
         item: z.string().optional().describe('Held item assumed while solving, as supplied; absent when the call gave none.'),
@@ -789,9 +766,8 @@ export function registerCalcTools(server: McpServer) {
         kill?: { target: SetInput; move: string; hits: number };
         maximize: 'atk' | 'spa' | 'spe' | 'hp' | 'def' | 'spd';
         field?: { gameType?: 'Singles' | 'Doubles'; weather?: string; terrain?: string };
-        generation: number;
       }) => {
-        const gen = normalizeGen(args.generation);
+        const gen = 9;
         const dex = getDex(gen);
         const sp = dex.species.get(args.species);
         requireExists(sp, 'Pokemon species', args.species);
@@ -912,7 +888,6 @@ export function registerCalcTools(server: McpServer) {
 
         return ok({
           species: sp.name,
-          generation: gen,
           level: args.level,
           nature,
           item: args.item,
