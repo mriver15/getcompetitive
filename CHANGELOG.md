@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking: responses no longer carry fields the caller did not ask for.** A
+  representative 25-call sweep over the whole surface drops from 59.0 KB to
+  39.8 KB (-33%) with no capability removed — every fact is still reachable, it
+  just costs a call that asks for it. Four tools changed shape:
+  - **`list_threats` lists; `get_set` details.** Passing `regulation` used to
+    return all 24 full sets (13.0 KB, 79% of it re-fetchable from `get_set`).
+    It now returns the ranking alone — species, role, tier, usage — and
+    `get_set` takes **an array of species** so one call still fetches several
+    sets (responding as `sets[]`; a single species keeps the flat shape).
+  - **`get_regulation` omits the two name rosters** unless `includeRoster: true`,
+    which is 3.4 KB of its 4.2 KB. `eligibleCount`/`megaCount` are always
+    returned, so the size is visible before deciding to ask.
+  - **`calculate_matchups` rows are structured, not narrated.** The per-defender
+    `description` sentence re-encoded `bestMove`, `damageRange` and `koChance`
+    in prose and was 34% of a 30-defender call; `calculate_damage` still renders
+    it for a single matchup. The attacker's Speed is hoisted to `attackerSpeed`
+    instead of repeating an identical number in all 30 rows.
+  - **`analyze_team` drops two derived fields:** `speed.fasterThreats`, a
+    base-Speed list that `threatCoverage` had already superseded with real sets,
+    and the per-threat `fastestSpeed` that was the same value 24 times over.
+- Damage sets no longer echo defaults: `ivs` appears only when a call supplied a
+  non-default one, and `boosts` only when a stage was set. Both were six fixed
+  values on every set in `calculate_damage` and `calculate_matchups`.
+
 ## [3.2.0] - 2026-09-18
 
 ### Added

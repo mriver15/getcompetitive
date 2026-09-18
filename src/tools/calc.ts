@@ -121,14 +121,14 @@ const damageSetSchema = z.object({
   nature: z.string().describe('Nature the stats were computed with, e.g. "Jolly"; Serious when the call omitted one.'),
   evs: reportedEvs,
   championsPoints: reportedChampionsPoints,
-  ivs: statBlock('Individual value for', 'IVs the set was calculated with; all six keys are present, defaulting to 31.'),
+  ivs: statBlock('Individual value for', 'IVs the set was calculated with; present only when the call supplied a non-default one, since an all-31 spread is what every omitted IV gives.').optional(),
   item: z.string().optional().describe('Held item echoed back as supplied, e.g. "Choice Band", whose effect the calc applied; absent when the set carried none.'),
   ability: z
     .string()
     .optional()
     .describe('Ability used: the one supplied, else the species\u2019 first ability; absent for a species with no abilities.'),
   status: z.string().optional().describe('Pre-existing status such as "brn", "par", or "tox"; absent when the set entered healthy.'),
-  boosts: statBlock('Stat stage for', 'Stat stages in effect for the calculation; all six keys are present with 0 for unboosted stats.'),
+  boosts: statBlock('Stat stage for', 'Stat stages in effect for the calculation; absent when none were supplied, since every omitted stage is 0.').optional(),
   stats: statBlock('Final', 'The six stats of this set at its level, IVs, EVs, and nature; stat stages are applied inside the damage mechanics, so they are not folded in here.'),
 });
 
@@ -324,7 +324,7 @@ export function registerCalcTools(server: McpServer) {
     {
       title: 'Batch damage matchups',
       description:
-        'Run one attacker against 1-30 defenders in a single call, picking the hardest-hitting move per defender from `move` or `attacker.moves` and reporting each matchup\u2019s damage range, KO chance, immunity, and who moves first. Use `calculate_damage` for a single pinned matchup or when side screens and hazards matter (this tool\u2019s `field` has only gameType, weather, and terrain); use `analyze_team` for type-synergy, not damage, and `calculate_stats` for a stat table with no battle. Supply `move` or a non-empty `attacker.moves`, else the call errors; defender levels default to 100. Read-only, offline, deterministic; unknown species or move names return an isError naming the offender.',
+        'Run one attacker against 1-30 defenders in a single call, picking the hardest-hitting move per defender from `move` or `attacker.moves` and reporting each matchup\u2019s damage range, KO chance, immunity, and who moves first. Rows carry only those fields \u2014 they are structured rather than prose, so that 30 defenders do not cost thirty rendered sentences; call `calculate_damage` for the single matchup rendered as a Showdown-format line. Use `calculate_damage` too when side screens and hazards matter (this tool\u2019s `field` has only gameType, weather, and terrain); use `analyze_team` for type-synergy, not damage, and `calculate_stats` for a stat table with no battle. Supply `move` or a non-empty `attacker.moves`, else the call errors; defender levels default to 100. Read-only, offline, deterministic; unknown species or move names return an isError naming the offender.',
       annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {
         attacker: setSchema.describe('The single attacking Pok\u00e9mon; set `moves` to let the tool choose the best move against each defender.'),
@@ -345,6 +345,9 @@ export function registerCalcTools(server: McpServer) {
       },
       outputSchema: {
         attacker: z.string().describe('Canonical species name of the single attacker every matchup was run with.'),
+        attackerSpeed: z
+          .number()
+          .describe('The attacker\u2019s final Speed stat; hoisted here because it is the same for every matchup, and `speed.attackerMovesFirst` compares it against each row\u2019s `speed.defender`.'),
         move: z
           .string()
           .describe('The fixed move both sides were scored with, or the literal "best of moveset" when the tool picked the hardest-hitting move per defender.'),
@@ -361,21 +364,17 @@ export function registerCalcTools(server: McpServer) {
                 .string()
                 .optional()
                 .describe('KO chance of `bestMove` against this defender, e.g. "guaranteed OHKO", or an empty string when the calc reports no KO; absent when there is no usable move.'),
-              description: z
-                .string()
-                .describe('One-line summary of `bestMove` against this defender, e.g. "252 Atk Garchomp Earthquake vs. 252 HP / 252+ Def Corviknight: 108-128 (27.9 - 33.1%)"; when no move resolved it explains that instead.'),
               immune: z
                 .boolean()
                 .describe('True when the best move\u2019s maximum roll is 0 — the defender takes nothing from every move tried, so the matchup is unwinnable with this move set.'),
               speed: z
                 .object({
-                  attacker: z.number().describe('The attacker\u2019s final Speed stat, the same number in every matchup.'),
                   defender: z.number().describe('This defender\u2019s final Speed stat.'),
                   attackerMovesFirst: z
                     .boolean()
                     .describe('True when the attacker\u2019s Speed is greater than or equal to the defender\u2019s, so the attacker moves first; from raw Speed stats only, so boosts, items, and paralysis are ignored.'),
                 })
-                .describe('Who moves first in this matchup, from the two Speed stats alone.'),
+                .describe('Who moves first in this matchup, from the two Speed stats alone; the attacker\u2019s side of the comparison is the top-level `attackerSpeed`.'),
             }),
           )
           .describe('One entry per defender, in the order the defenders were supplied.'),
@@ -429,9 +428,8 @@ export function registerCalcTools(server: McpServer) {
           bestMove: string | null;
           damageRange: [number, number];
           koChance?: string;
-          description: string;
           immune: boolean;
-          speed: { attacker: number; defender: number; attackerMovesFirst: boolean };
+          speed: { defender: number; attackerMovesFirst: boolean };
         }[] = [];
 
         for (const defSpec of args.defenders) {
@@ -442,7 +440,6 @@ export function registerCalcTools(server: McpServer) {
             move: string;
             maxDmg: number;
             range: [number, number];
-            desc: string;
             ko?: string;
           } | null = null;
 
@@ -457,19 +454,16 @@ export function registerCalcTools(server: McpServer) {
             const flat = flatDamage(result.damage);
             const maxDmg = flat.length ? Math.max(...flat) : 0;
             if (best === null || maxDmg > best.maxDmg) {
-              let desc = '';
               let ko: string | undefined;
               try {
-                desc = result.desc();
                 ko = result.kochance().text;
               } catch {
-                desc = `${attacker.name} ${mv.name} vs. ${defender.name}: 0 damage (immune).`;
+                ko = undefined;
               }
               best = {
                 move: mv.name,
                 maxDmg,
                 range: flat.length ? ([Math.min(...flat), Math.max(...flat)] as [number, number]) : [0, 0],
-                desc,
                 ko,
               };
             }
@@ -481,14 +475,14 @@ export function registerCalcTools(server: McpServer) {
             bestMove: best ? best.move : null,
             damageRange: best ? best.range : [0, 0],
             koChance: best?.ko,
-            description: best ? best.desc : 'No damage-dealing move resolved.',
             immune: best ? best.maxDmg === 0 : true,
-            speed: { attacker: atkSpe, defender: defSpe, attackerMovesFirst: atkSpe >= defSpe },
+            speed: { defender: defSpe, attackerMovesFirst: atkSpe >= defSpe },
           });
         }
 
         return ok({
           attacker: attacker.name,
+          attackerSpeed: atkSpe,
           move: args.move ?? 'best of moveset',
           matchups,
         });

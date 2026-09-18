@@ -534,16 +534,21 @@ export function damageResult(
 function summarizeSet(p: Pokemon) {
   const evs: Record<string, number> = {};
   for (const s of STATS) if (p.evs[s]) evs[s] = p.evs[s];
+  // Echo only what differs from the defaults. An all-31 IV spread and an all-zero
+  // boost table are the same for every set, and cost ~140 bytes per side per call:
+  // in a 30-defender `calculate_matchups` that is 4 KB of nothing.
+  const customIvs = STATS.some((s) => p.ivs[s] !== 31);
+  const boosted = STATS.some((s) => p.boosts[s] !== 0);
   return {
     level: p.level,
     nature: p.nature,
     evs,
     championsPoints: evsToChampionsPoints(evs),
-    ivs: p.ivs,
+    ...(customIvs ? { ivs: p.ivs } : {}),
     item: p.item,
     ability: p.ability,
     status: p.status || undefined,
-    boosts: p.boosts,
+    ...(boosted ? { boosts: p.boosts } : {}),
   };
 }
 

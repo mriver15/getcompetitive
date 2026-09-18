@@ -190,22 +190,9 @@ export function registerAnalyzeTools(server: McpServer) {
               .number()
               .int()
               .optional()
-              .describe('How many legal species outspeed the fastest member; present only when `regulation` was supplied.'),
-            fasterThreats: z
-              .array(
-                z.object({
-                  species: z.string().describe('Legal species name.'),
-                  baseSpe: z.number().int().describe('Its base Speed stat, higher than the team\u2019s fastest.'),
-                }),
-              )
-              .optional()
               .describe(
-                'Up to 20 of those threats, fastest first, cut off at that limit; present only when `regulation` was supplied — compare with `fasterThreatCount` for the full total.',
+                'How many legal species have a higher base Speed than the team\u2019s fastest member; present only when `regulation` was supplied. A base-stat count only \u2014 `threatCoverage` applies each threat\u2019s real nature, EVs and Mega form.',
               ),
-            note: z
-              .string()
-              .optional()
-              .describe('Caveat that threats are base-speed comparisons only; present only when `regulation` was supplied.'),
           })
           .describe('Where the team sits on the speed spectrum, plus legal faster threats when a regulation was given.'),
         bringFour: z
@@ -228,12 +215,12 @@ export function registerAnalyzeTools(server: McpServer) {
           .object({
             regulation: z.string().describe('Display name of the regulation whose threat list was used, e.g. "Regulation Set M-C".'),
             sourceAsOf: z.string().describe('ISO date of the newest data point behind that threat list.'),
+            fastestSpeed: z.number().int().describe('Your fastest member\u2019s Speed at level 50 with the sets you supplied \u2014 the value every `outspeed` below is judged against.'),
             threats: z.array(
               z.object({
                 species: z.string().describe('The threat as the meta plays it, e.g. "Salamence-Mega".'),
                 usage: z.number().describe('Share of the sampled teams carrying it, in percent.'),
                 threatSpeed: z.number().int().describe('Its Speed at level 50 with its own nature, EVs and Mega form.'),
-                fastestSpeed: z.number().int().describe('Your fastest member\u2019s Speed at level 50 with the sets you supplied.'),
                 outspeed: z.boolean().describe('True when your fastest member moves first.'),
                 hitMultiplier: z.number().describe('Best type multiplier your team has against it, from STAB and supplied moves; 0 when nothing can hit it at all.'),
                 hitBy: z.string().optional().describe('The member providing that best hit; absent when nothing hits it super-effectively.'),
@@ -418,7 +405,6 @@ export function registerAnalyzeTools(server: McpServer) {
             species: form,
             usage: threat.usage,
             threatSpeed,
-            fastestSpeed: fastestMember.speed,
             outspeed: fastestMember.speed > threatSpeed,
             hitMultiplier: multiplier,
             ...(multiplier > 1 && best ? { hitBy: best.member, hitVia: best.via } : {}),
@@ -462,8 +448,6 @@ export function registerAnalyzeTools(server: McpServer) {
               ? {
                   regulation: set.name,
                   fasterThreatCount: fasterThreats.length,
-                  fasterThreats: fasterThreats.slice(0, 20),
-                  note: 'Threats are base-speed comparisons; for the real-set comparison see `threatCoverage`, which applies each threat\u2019s actual nature, EVs and Mega form.',
                 }
               : {}),
           },
@@ -473,6 +457,7 @@ export function registerAnalyzeTools(server: McpServer) {
                 threatCoverage: {
                   regulation: threatList.name,
                   sourceAsOf: threatList.sourceAsOf,
+                  fastestSpeed: fastestMember.speed,
                   threats: threatCoverage,
                   unanswered,
                   unansweredCount: unanswered.length,
