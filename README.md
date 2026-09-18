@@ -17,7 +17,7 @@ Smogon-tier and archetype surface that used to sit alongside it is gone.
 
 ## What it provides
 
-- **21 tools** across five domains: data, team analysis, meta (usage-derived), battle mechanics, and official regulation sets
+- **25 tools** across six domains: data, team analysis, team workflows (paste in, diagnose, prepare matchups), meta (usage-derived), battle mechanics, and official regulation sets
 - **Structured, agent-first definitions** — every tool declares MCP annotations and an output schema, returns `structuredContent` alongside JSON text, and documents all of its parameters; the deterministic half of the [TDQS](https://tdqs.dev) checklist is linted in CI
 - Full **Pokémon Showdown** dataset — species, alternate forms, stats, moves, items, abilities, natures, learnsets, types
 - **Battle math** from Smogon's calculator — stat calculation and full damage calculation (weather, terrain, boosts, items)
@@ -47,6 +47,14 @@ Built on [`@pkmn/dex`](https://github.com/pkmn/EPOKe) (Showdown data) and
 | Tool | Purpose |
 | --- | --- |
 | `analyze_team` | Team synergy: stacked defensive weaknesses, offensive coverage gaps, speed placement, a heuristic score, and — with a regulation — coverage against the meta's real sets |
+
+### Team workflows
+| Tool | Purpose |
+| --- | --- |
+| `parse_team` | Turn a Showdown/Pokepaste block (or a `species @ item \| ability \| nature \| EVs \| moves` one-liner) into the canonical team every tool takes; unknown names become warnings, not errors |
+| `format_team` | Render a canonical team back into paste text, round-tripping through `parse_team` |
+| `diagnose_team` | "Fix my team": weaknesses with evidence, then concrete spread, move, item and member changes, each backed by exact math or usage data |
+| `prepare_matchup` | "Prepare me": their likely sets by usage, speed races with margins, key damage rolls, bring-four, leads, and win/loss conditions |
 
 ### Meta (usage-derived)
 | Tool | Purpose |
@@ -142,6 +150,9 @@ npm test   # builds and drives every tool over real MCP stdio
 - `calculate_damage` `{ "attacker": { "species": "Garchomp", "level": 50, "nature": "Jolly", "evs": { "atk": 252, "spe": 252 }, "item": "Choice Band" }, "defender": { "species": "Corviknight", "level": 50, "nature": "Impish", "evs": { "hp": 252, "def": 252 } }, "move": "Dragon Claw" }`
 - `check_legality` `{ "regulation": "m-c", "team": [ { "species": "Garchomp", "item": "Choice Band" } ] }`
 - `analyze_team` `{ "team": [ { "species": "Garchomp", "moves": ["Earthquake", "Dragon Claw", "Rock Slide"] } ], "regulation": "m-c" }`
+- `parse_team` `{ "text": "Garchomp @ Choice Scarf | Rough Skin | Jolly | 252 Atk / 252 Spe | Earthquake / Dragon Claw" }`
+- `diagnose_team` `{ "team": [ { "species": "Garchomp", "nature": "Jolly", "evs": { "atk": 252, "spe": 252 } } ], "goal": "improve against the current meta" }`
+- `prepare_matchup` `{ "team": [ { "species": "Garchomp" } ], "opponent": ["Sneasler", "Salamence-Mega", "Gholdengo"] }`
 
 ## Data freshness
 

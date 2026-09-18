@@ -134,6 +134,33 @@ const calls = [
   ['optimize_evs', { species: 'Garchomp', level: 50, outspeed: { speed: 150 } }],
   ['list_threats', {}],
   ['get_set', { species: 'Incineroar', regulation: 'm-c' }],
+  // The P0 workflow surface: paste in, diagnose, prepare a matchup, paste out.
+  ['parse_team', {
+    text: 'Rillaboom @ Assault Vest\nAbility: Grassy Surge\nAdamant Nature\nEVs: 252 HP / 252 Atk / 4 SpD\n- Fake Out\n- Grassy Glide\n- Wood Hammer\n- U-turn\n\nSalamence @ Salamencite\nAbility: Intimidate\nJolly Nature\nEVs: 32 Atk / 32 Spe\n- Dragon Dance\n- Dual Wingbeat\n- Earthquake\n- Protect\n\nGholdengo @ Life Orb | Good as Gold | Modest | 252 SpA / 252 Spe | Make It Rain / Shadow Ball / Nasty Plot / Protect',
+    regulation: 'm-c',
+  }],
+  ['format_team', {
+    team: [
+      { species: 'Garchomp', item: 'Choice Scarf', ability: 'Rough Skin', nature: 'Jolly', evs: { atk: 252, spe: 252 }, moves: ['Earthquake', 'Dragon Claw', 'Rock Slide', 'Protect'] },
+      { species: 'Incineroar', item: 'Sitrus Berry', nature: 'Careful', championsPoints: { hp: 32, def: 14, spd: 20 }, moves: ['Fake Out', 'Flare Blitz', 'Parting Shot', 'Knock Off'] },
+    ],
+  }],
+  ['diagnose_team', {
+    team: [
+      { species: 'Garchomp', item: 'Garchompite', nature: 'Jolly', evs: { atk: 252, spe: 252 }, moves: ['Swords Dance', 'Earthquake', 'Dragon Claw', 'Rock Slide'] },
+      { species: 'Incineroar', item: 'Sitrus Berry', nature: 'Careful', championsPoints: { hp: 32, def: 14, spd: 20 }, moves: ['Fake Out', 'Flare Blitz', 'Parting Shot', 'Knock Off'] },
+      { species: 'Rillaboom', item: 'Assault Vest', nature: 'Adamant', evs: { hp: 252, atk: 252 }, moves: ['Fake Out', 'Grassy Glide', 'Wood Hammer', 'U-turn'] },
+    ],
+    lockedMembers: ['Garchomp'],
+  }],
+  ['prepare_matchup', {
+    team: [
+      { species: 'Garchomp', item: 'Garchompite', nature: 'Jolly', evs: { atk: 252, spe: 252 }, moves: ['Swords Dance', 'Earthquake', 'Dragon Claw', 'Rock Slide'] },
+      { species: 'Incineroar', item: 'Sitrus Berry', nature: 'Careful', championsPoints: { hp: 32, def: 14, spd: 20 }, moves: ['Fake Out', 'Flare Blitz', 'Parting Shot', 'Knock Off'] },
+      { species: 'Rillaboom', item: 'Assault Vest', nature: 'Adamant', evs: { hp: 252, atk: 252 }, moves: ['Fake Out', 'Grassy Glide', 'Wood Hammer', 'U-turn'] },
+    ],
+    opponent: ['Sneasler', 'Salamence-Mega', 'Gholdengo', 'Farigiraf', 'Kingambit', 'Rillaboom'],
+  }],
   ['analyze_team', {
     team: [
       { species: 'Garchomp', moves: ['Earthquake'] },
@@ -174,6 +201,8 @@ for (const [name, args] of [
   ['calculate_stats', { species: 'Garchomp', level: 50, evs: { spe: 4 }, championsPoints: { spe: 32 } }],
   ['calculate_stats', { species: 'Garchomp', level: 50, championsPoints: { hp: 32, atk: 32, spe: 32 } }],
   ['get_type_matchup', { attacker: 'Fire', defender: 'Bogus' }],
+  ['parse_team', { text: '' }],
+  ['diagnose_team', { team: [{ species: 'NotAMon' }] }],
 ]) {
   const res = await client.callTool({ name, arguments: args });
   const isErr = !!res.isError;

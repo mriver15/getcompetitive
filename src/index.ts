@@ -15,6 +15,9 @@ import { registerCalcTools } from './tools/calc.js';
 import { registerRegulationTools } from './tools/regulations.js';
 import { registerAnalyzeTools } from './tools/analyze.js';
 import { registerMetaTools } from './tools/meta.js';
+import { registerTeamTools } from './tools/team.js';
+import { registerDoctorTool } from './tools/doctor.js';
+import { registerMatchupTool } from './tools/matchup.js';
 
 const { version } = JSON.parse(
   readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
@@ -30,5 +33,8 @@ registerCalcTools(server);
 registerRegulationTools(server);
 registerAnalyzeTools(server);
 registerMetaTools(server);
+registerTeamTools(server);
+registerDoctorTool(server);
+registerMatchupTool(server);
 
 await server.connect(new StdioServerTransport());
