@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **The P0 team workflows** — four tools that turn the toolbox into a coach:
+  - **`parse_team`** turns a Showdown/Pokepaste block, the server's own `get_set`
+    paste, or a `species @ item | ability | nature | EVs | moves` one-liner into
+    the canonical team shape every other tool takes, in one call instead of six
+    hand-built objects. Parsing is forgiving: unknown species, moves, items and
+    abilities become warnings carrying the supplied spelling, never errors, and
+    an optional `regulation` flags species outside the legal roster. `EVs:`
+    lines whose values all fit 0-32 and total at most 66 are read as Champions
+    stat points, matching the server's own pastes.
+  - **`format_team`** renders a canonical team back into paste text; spreads
+    keep the scale they were given, so it round-trips through `parse_team`
+    unchanged.
+  - **`diagnose_team`** is "here is my team — fix it": weaknesses with
+    evidence (unanswered top threats, matchups resting on one member, stacked
+    weaknesses, losing the speed race, uncovered types), then candidate changes
+    each backed by a calculation or a usage fact — spread changes computed to
+    exact level-50 Speed values, learnset-legal move swaps, item changes toward
+    what the meta actually plays, and member swaps flagged as typing-only
+    because usage data exists only for the ranked species. `lockedMembers`
+    keeps species from being swapped out; the `goal` string is carried
+    verbatim. (The feedback's "Team Doctor", renamed to the `verb_noun` pattern
+    the TDQS gate enforces.)
+  - **`prepare_matchup`** is "here is my opponent — prepare me": their likely
+    sets ordered by usage with each species' actual item, ability, nature, EVs
+    and four moves; speed races with margins spelled out; real damage rolls for
+    the key matchups (your hardest hit into their top threats and their hardest
+    hit back); the same type-scored bring-four as `analyze_team`; lead pairings;
+    win and loss conditions; and the members to preserve. Uncurated opponent
+    species are estimated from base stats and say so.
+
 ## [4.0.1] - 2026-09-18
 
 ### Added

@@ -29,7 +29,7 @@ const bringCandidate = z.object({
  * super-effectively; the four highest come, and the types that leaves stacked and
  * uncovered are reported so the cost of the cut is visible.
  */
-function planBringFour(
+export function planBringFour(
   members: { species: string; types: string[]; moveTypes: string[] }[],
   opponent: { name: string; types: string[] }[],
 ) {
