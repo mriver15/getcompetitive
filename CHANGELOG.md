@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`analyze_team` plans the bring-4.** Supply `opponent` (up to six species) and
+  it reports `bringFour`: every member scored on how many of theirs it hits
+  super-effectively against how many hit it back, the best four to bring, the two
+  left behind, and the types that leaves stacked and uncovered. The granularity is
+  deliberate rather than a shortcut — team preview shows the opponent's species
+  and nothing else, ranked being closed teamlist, so a type read is exactly what a
+  player has to go on.
+
 ## [3.1.0] - 2026-09-18
 
 ### Added

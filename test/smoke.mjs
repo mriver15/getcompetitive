@@ -101,6 +101,7 @@ const calls = [
   // Real sets in the team turn the threat coverage into a real-Speed comparison.
   ['analyze_team', {
     regulation: 'm-c',
+    opponent: ['Salamence', 'Sneasler', 'Kingambit', 'Pelipper', 'Farigiraf', 'Incineroar'],
     team: [
       { species: 'Garchomp', nature: 'Jolly', evs: { atk: 252, spe: 252 } },
       { species: 'Incineroar', nature: 'Careful', championsPoints: { hp: 32, def: 14, spd: 20 }, item: 'Sitrus Berry' },
