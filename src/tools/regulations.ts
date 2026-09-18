@@ -108,13 +108,19 @@ export function registerRegulationTools(server: McpServer) {
     {
       title: 'Get regulation set',
       description:
-        'Get one Pokémon Champions / VGC Regulation Set in full: battle rules (level 50 doubles, timers, bring 4 of 6), team clauses (Species, Item, auto-level 50), Mega Evolution rules and eligible Mega species, and the whole legal base-species roster. Accepts the id or name case- and punctuation-insensitively ("M-A", "m-a", "mc", "Regulation Set M-C"); an unknown id is an isError listing the valid names. Use `list_regulations` to discover ids and `check_legality` to test a team. Read-only and offline; returns dates, status, counts, clauses, source, and the full roster (large).',
+        'Get one Pok\u00e9mon Champions / VGC Regulation Set in full: battle rules (level 50 doubles, timers, bring 4 of 6), team clauses (Species, Item, auto-level 50), Mega Evolution rules, and the size of the legal roster. The two name rosters \u2014 every legal base species, and every species allowed to Mega Evolve \u2014 are about two thirds of the response and come back only with `includeRoster`; the `eligibleCount`/`megaCount` sizes are always there. Accepts the id or name case- and punctuation-insensitively ("M-A", "m-a", "mc", "Regulation Set M-C"); an unknown id is an isError listing the valid names. Use `list_regulations` to discover ids and `check_legality` to test a team. Read-only and offline; returns dates, status, counts, clauses, and source.',
       annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {
         regulation: z
           .string()
           .describe(
             'Regulation Set id or name, matched case- and punctuation-insensitively: "M-A", "m-a", "mc", and "Regulation Set M-C" all resolve to the same set.',
+          ),
+        includeRoster: z
+          .boolean()
+          .optional()
+          .describe(
+            'Include the two name rosters \u2014 every legal base species and every species allowed to Mega Evolve \u2014 which together are about two thirds of the response. Omitted, the rules and the `eligibleCount`/`megaCount` sizes come back without them; pass true when you actually need the names.',
           ),
       },
       outputSchema: {
@@ -155,24 +161,30 @@ export function registerRegulationTools(server: McpServer) {
             perBattle: z.number().describe('How many times a player may Mega Evolve per battle (1).'),
             species: z
               .array(z.string())
-              .describe('Base species allowed to Mega Evolve; every form of each is covered.'),
+              .optional()
+              .describe('Base species allowed to Mega Evolve; every form of each is covered. Present only when `includeRoster` was set \u2014 `megaCount` gives the size either way.'),
           })
           .describe('Mega Evolution rules.'),
         eligibleSpecies: z
           .array(z.string())
-          .describe('The full legal base-species roster (large); every form of a listed species is legal.'),
+          .optional()
+          .describe('The full legal base-species roster; every form of a listed species is legal. Present only when `includeRoster` was set \u2014 `eligibleCount` gives the size either way.'),
         source: z.string().describe('URL of the source the rosters were taken from.'),
         sourceAsOf: z.string().describe('ISO date the rosters were last refreshed.'),
       },
     },
-    wrap(async (args: { regulation: string }) => {
+    wrap(async (args: { regulation: string; includeRoster?: boolean }) => {
       const set = getRegulationSet(args.regulation);
       if (!set) {
         throw new Error(
           `Unknown regulation set "${args.regulation}". Available: ${REGULATION_SETS.map((s) => s.name).join(', ')}.`,
         );
       }
-      return ok(detail(set));
+      const { eligibleSpecies, megaEvolution, ...rest } = detail(set);
+      if (args.includeRoster) return ok({ ...rest, eligibleSpecies, megaEvolution });
+      // The two rosters are roughly two thirds of this payload. The counts in `rest`
+      // already say how big they are, so a caller who wants the names asks again.
+      return ok({ ...rest, megaEvolution: { allowed: megaEvolution.allowed, perBattle: megaEvolution.perBattle } });
     }),
   );
 

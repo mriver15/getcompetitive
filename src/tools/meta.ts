@@ -33,9 +33,15 @@ function setPaste(t: Threat): string {
   ].join('\n');
 }
 
+/** The paste string, shared by `get_set`'s single and batched shapes. */
+const pasteOutput = z
+  .string()
+  .describe(
+    'The whole set as a Showdown-format paste, ready to copy into a team builder or paste host: `species @ item`, ability, level 50, nature, EVs in Pok\u00e9mon Champions stat points (0-32 each, 66 total \u2014 what the game\u2019s training screen takes), then the four moves. A Mega set names the base species holding its stone.',
+  );
+
 /**
- * One full usage-derived standard set. Shared by `list_threats`' regulation-scoped
- * `threats[]` and (spread) `get_set`'s flat payload.
+ * One full usage-derived standard set, used by `get_set`'s `sets[]`.
  */
 const threatOutput = {
   species: z
@@ -94,6 +100,10 @@ const threatOutput = {
     .describe('The usage figures this set was derived from; absent when the list carries none.'),
 };
 
+/** The flat single-set payload's fields; every one is optional at the top level too,
+ *  because this tool answers with `sets[]` instead when several species are asked for. */
+const flatSetOutput = z.object({ ...threatOutput, paste: pasteOutput }).partial().shape;
+
 /** Reduced per-threat projection `list_threats` returns when no regulation is given. */
 const threatSummaryOutput = {
   species: z.string().describe('Base species name, e.g. "Rillaboom".'),
@@ -108,7 +118,7 @@ export function registerMetaTools(server: McpServer) {
     {
       title: 'List meta threats',
       description:
-        'List the most-used Pok\u00e9mon of one Pok\u00e9mon Champions regulation, ranked by measured usage: each threat\u2019s species, form, role, tier (S/A/B by usage rank), usage share and most-played standard set, plus the sample and sources the list was derived from; omit `regulation` to get every available list with a threat count and its top threats. Use `get_set` for one species instead and `list_regulations` to discover regulation ids. Regulation ids match case- and punctuation-insensitively ("M-C", "mc"); an unknown one returns an isError naming the available lists. Usage-derived from Limitless VGC tournament teams, not editorial opinion. Read-only and offline; no network, auth, or rate limits.',
+        'List the most-used Pok\u00e9mon of one Pok\u00e9mon Champions regulation, ranked by measured usage: each threat\u2019s species, role, tier (S/A/B by usage rank) and usage share, plus the sample and sources the list was derived from; omit `regulation` to get every available list. This is the ranking only \u2014 for a threat\u2019s standard set call `get_set`, which takes several species at once, and use `list_regulations` to discover regulation ids. Regulation ids match case- and punctuation-insensitively ("M-C", "mc"); an unknown one returns an isError naming the available lists. Usage-derived from Limitless VGC tournament teams, not editorial opinion. Read-only and offline; no network, auth, or rate limits.',
       annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {
         regulation: z
@@ -170,9 +180,11 @@ export function registerMetaTools(server: McpServer) {
           .optional()
           .describe('Independent second ranking used to check the ordering; absent when the cross-check was unavailable, or when `regulation` was omitted.'),
         threats: z
-          .array(z.object(threatOutput))
+          .array(z.object(threatSummaryOutput))
           .optional()
-          .describe('Every threat in this regulation, most used first, with its standard set; present only when `regulation` was supplied.'),
+          .describe(
+            'Every threat in this regulation, most used first \u2014 species, role, tier and usage only; present only when `regulation` was supplied. Fetch the sets you need with `get_set`, which takes several species in one call.',
+          ),
         lists: z
           .array(
             z.object({
@@ -201,7 +213,7 @@ export function registerMetaTools(server: McpServer) {
           sample: list.sample,
           sources: list.sources,
           ...(list.corroboration ? { corroboration: list.corroboration } : {}),
-          threats: list.threats,
+          threats: list.threats.map((t) => ({ species: t.species, role: t.role, tier: t.tier, usage: t.usage })),
         });
       }
       return ok({
@@ -220,42 +232,58 @@ export function registerMetaTools(server: McpServer) {
     {
       title: 'Get standard competitive set',
       description:
-        'Return one species\u2019 most-played competitive set: item, ability (with the Mega form and ability for Mega sets), nature, EVs, the four most-played moves, role, tier, usage share, the usage figures behind it, and the set as a Showdown-format `paste` ready to copy into a team builder or paste host, with EVs in Champions stat points. Reach for it when asked what a species usually runs; `list_threats` browses a whole regulation and `check_legality` validates teams. Species match is case-insensitive and ignores punctuation, and resolves forms, so "Indeedee-F" and "Salamence-Mega" find the same sets as "Indeedee" and "Salamence"; pass `regulation` (e.g. "m-c") to scope to one list; unknown species return an isError listing every known threat. Usage-derived from Limitless VGC tournament teams, not editorial opinion; read-only, offline, no network or auth.',
+        'Return one species\u2019 most-played competitive set: item, ability (with the Mega form and ability for Mega sets), nature, EVs, the four most-played moves, role, tier, usage share, the usage figures behind it, and the set as a Showdown-format `paste` ready to copy into a team builder or paste host, with EVs in Champions stat points. Pass an array of species to fetch several sets in one call, which answers as `sets` \u2014 use that rather than calling once per species. Reach for it when asked what a species usually runs; `list_threats` gives the ranked species of a regulation and `check_legality` validates teams. Species match is case-insensitive and ignores punctuation, and resolves forms, so "Indeedee-F" and "Salamence-Mega" find the same sets as "Indeedee" and "Salamence"; pass `regulation` (e.g. "m-c") to scope to one list; unknown species return an isError. Usage-derived from Limitless VGC tournament teams, not editorial opinion; read-only, offline, no network or auth.',
       annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {
         species: z
-          .string()
-          .describe('Base species or form name, e.g. "Garchomp", "Indeedee-F" (case- and punctuation-insensitive).'),
+          .union([z.string(), z.array(z.string()).min(1).max(24)])
+          .describe(
+            'Base species or form name, e.g. "Garchomp", "Indeedee-F" (case- and punctuation-insensitive). Pass an array to fetch several sets in one call, which returns `sets` instead of the flat set.',
+          ),
         regulation: z
           .string()
           .optional()
           .describe('Optional regulation set id, e.g. "m-c"; omit to search every list.'),
       },
       outputSchema: {
+        ...flatSetOutput,
         regulation: z
           .string()
-          .describe('Display name of the list the set came from, e.g. "Regulation Set M-C".'),
-        sourceAsOf: z.string().describe('ISO date of the newest data point behind that list.'),
-        ...threatOutput,
-        paste: z
+          .optional()
+          .describe('Display name of the list the set came from, e.g. "Regulation Set M-C"; present only when a single species was requested.'),
+        sourceAsOf: z
           .string()
-          .describe(
-            'The whole set as a Showdown-format paste, ready to copy into a team builder or paste host: `species @ item`, ability, level 50, nature, EVs in Pok\u00e9mon Champions stat points (0-32 each, 66 total \u2014 what the game\u2019s training screen takes), then the four moves. A Mega set names the base species holding its stone.',
-          ),
+          .optional()
+          .describe('ISO date of the newest data point behind that list; present only when a single species was requested.'),
+        sets: z
+          .array(
+            z.object({
+              regulation: z.string().describe('Display name of the list the set came from.'),
+              sourceAsOf: z.string().describe('ISO date of the newest data point behind that list.'),
+              ...threatOutput,
+              paste: pasteOutput,
+            }),
+          )
+          .optional()
+          .describe('One entry per requested species, in the order supplied; present only when `species` was an array.'),
       },
     },
-    wrap(async (args: { species: string; regulation?: string }) => {
-      const hit = findThreat(args.species, args.regulation);
-      if (!hit) {
-        const known = Object.values(THREAT_LISTS).flatMap((l) => l.threats.flatMap((t) => [t.species, t.form, t.megaForm].filter((n) => n !== undefined)));
-        throw new Error(`No set for "${args.species}". Known threats: ${known.join(', ')}.`);
-      }
-      return ok({
-        regulation: hit.list.name,
-        sourceAsOf: hit.list.sourceAsOf,
-        ...hit.threat,
-        paste: setPaste(hit.threat),
-      });
+    wrap(async (args: { species: string | string[]; regulation?: string }) => {
+      // A miss names no candidates: the full list runs to about fifty names, which
+      // costs more than the answer would, and `list_threats` is the tool for that.
+      const lookup = (name: string) => {
+        const hit = findThreat(name, args.regulation);
+        if (!hit) throw new Error(`No set for "${name}". Use \`list_threats\` for the species a regulation covers.`);
+        return {
+          regulation: hit.list.name,
+          sourceAsOf: hit.list.sourceAsOf,
+          ...hit.threat,
+          paste: setPaste(hit.threat),
+        };
+      };
+
+      if (Array.isArray(args.species)) return ok({ sets: args.species.map(lookup) });
+      return ok(lookup(args.species));
     }),
   );
 }
