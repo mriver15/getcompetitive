@@ -232,7 +232,7 @@ export function registerMetaTools(server: McpServer) {
     {
       title: 'Get standard competitive set',
       description:
-        'Return one species\u2019 most-played competitive set: item, ability (with the Mega form and ability for Mega sets), nature, EVs, the four most-played moves, role, tier, usage share, the usage figures behind it, and the set as a Showdown-format `paste` ready to copy into a team builder or paste host, with EVs in Champions stat points. Pass an array of species to fetch several sets in one call, which answers as `sets` \u2014 use that rather than calling once per species. Reach for it when asked what a species usually runs; `list_threats` gives the ranked species of a regulation and `check_legality` validates teams. Species match is case-insensitive and ignores punctuation, and resolves forms, so "Indeedee-F" and "Salamence-Mega" find the same sets as "Indeedee" and "Salamence"; pass `regulation` (e.g. "m-c") to scope to one list; unknown species return an isError. Usage-derived from Limitless VGC tournament teams, not editorial opinion; read-only, offline, no network or auth.',
+        'Return one species\u2019 most-played competitive set: item, ability (with the Mega form and ability for Mega sets), nature, EVs, the four most-played moves, role, tier, usage share, the usage figures behind it, and the set as a Showdown-format `paste` ready to copy into a team builder or paste host, with EVs in Champions stat points. Sets exist for the ranked species of each regulation only \u2014 `list_threats` lists exactly which, and `list_regulations` gives each set\u2019s `threatCount` \u2014 so check there before asking for a species outside the meta; a miss returns an isError naming that coverage. Pass an array of species to fetch several sets in one call, which answers as `sets` \u2014 use that rather than calling once per species. Reach for it when asked what a species usually runs; `check_legality` validates teams. Species match is case-insensitive and ignores punctuation, and resolves forms, so "Indeedee-F" and "Salamence-Mega" find the same sets as "Indeedee" and "Salamence"; pass `regulation` (e.g. "m-c") to scope to one list. Usage-derived from Limitless VGC tournament teams, not editorial opinion; read-only, offline, no network or auth.',
       annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {
         species: z
@@ -269,11 +269,30 @@ export function registerMetaTools(server: McpServer) {
       },
     },
     wrap(async (args: { species: string | string[]; regulation?: string }) => {
-      // A miss names no candidates: the full list runs to about fifty names, which
-      // costs more than the answer would, and `list_threats` is the tool for that.
+      const known = Object.values(THREAT_LISTS);
+      const scoped = args.regulation ? getThreatList(args.regulation) : undefined;
+      if (args.regulation && !scoped) {
+        // A different failure from a missing species: usage needs a closed sample
+        // window, so a regulation with no list has no sets at all to return.
+        throw new Error(
+          `No threat list for "${args.regulation}", so there are no sets to return. Available: ${known.map((l) => `${l.name} (${l.regulation})`).join(', ')}.`,
+        );
+      }
+
+      // Sets exist only for the ranked species, so a miss is a question the caller
+      // could have answered before asking. Name the coverage and the call that
+      // lists it, rather than only naming the tool that would have said so.
+      const coverage = scoped
+        ? `${scoped.name}'s ${scoped.threats.length} ranked species`
+        : `the ${known.reduce((n, l) => n + l.threats.length, 0)} ranked species across ${known.length} regulation${known.length === 1 ? '' : 's'}`;
+
       const lookup = (name: string) => {
         const hit = findThreat(name, args.regulation);
-        if (!hit) throw new Error(`No set for "${name}". Use \`list_threats\` for the species a regulation covers.`);
+        if (!hit) {
+          throw new Error(
+            `No curated set for "${name}"; sets exist for ${coverage} only, and \`list_threats\` lists them.`,
+          );
+        }
         return {
           regulation: hit.list.name,
           sourceAsOf: hit.list.sourceAsOf,

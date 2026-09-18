@@ -11,9 +11,11 @@ import {
   setStatus,
   type RegulationSet,
 } from '../regulations.js';
+import { THREAT_LISTS } from '../threats.js';
 import { READ_ONLY_ANNOTATIONS, ok, wrap } from '../result.js';
 
 function summarize(set: RegulationSet) {
+  const list = THREAT_LISTS[set.id];
   return {
     id: set.id,
     name: set.name,
@@ -23,6 +25,10 @@ function summarize(set: RegulationSet) {
     end: set.end,
     eligibleCount: set.eligibleSpecies.length,
     megaCount: set.megaEvolution.species.length,
+    // Usage needs a closed sample window, so a past regulation has no threat list.
+    // Announcing that here keeps a caller from spending a round trip finding out
+    // through `list_threats`, which can only answer for the sets that have one.
+    ...(list ? { threatCount: list.threats.length } : {}),
     notes: set.notes,
   };
 }
@@ -42,6 +48,13 @@ const regulationSummaryOutput = {
   end: z.string().describe('Last day the set is in force, ISO 8601 (inclusive).'),
   eligibleCount: z.number().describe('How many base species are on the legal roster.'),
   megaCount: z.number().describe('How many base species on the roster may Mega Evolve.'),
+  threatCount: z
+    .number()
+    .int()
+    .optional()
+    .describe(
+      'How many species have a usage-derived standard set in this regulation\u2019s threat list, i.e. how many `get_set` can answer for; absent for a set with no usage sample, where `list_threats` has nothing to list.',
+    ),
   notes: z.string().describe('Curator summary of the format and what it changed over the previous set.'),
 };
 

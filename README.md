@@ -52,12 +52,12 @@ Built on [`@pkmn/dex`](https://github.com/pkmn/EPOKe) (Showdown data) and
 | Tool | Purpose |
 | --- | --- |
 | `list_threats` | Most-used Pokemon of a regulation, ranked by measured usage (role, tier, usage share) with the sample and sources behind it |
-| `get_set` | Most-played set for one or several species (item, ability, nature, EVs, 4 moves), with the Mega form and ability where relevant |
+| `get_set` | Most-played set for one or several species (item, ability, nature, EVs, 4 moves), with the Mega form and ability where relevant; covers each regulation's ranked species, which `list_threats` lists |
 
 ### Regulations (Pokémon Champions / VGC)
 | Tool | Purpose |
 | --- | --- |
-| `list_regulations` | Official Regulation Sets with dates, status, and roster size |
+| `list_regulations` | Official Regulation Sets with dates, status, roster size, and how many species have usage-derived sets |
 | `get_regulation` | Full set rules: battle rules, clauses, Mega rules, and roster sizes; the name rosters come back with `includeRoster` |
 | `check_legality` | Validate a team against a set: illegal species, Species/Item Clause, illegal moves, team size, Mega eligibility |
 

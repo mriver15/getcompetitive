@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Coverage is now knowable before it is needed.** `get_set` only answers for
+  the ranked species of a regulation, and the only way to learn that used to be a
+  failed call — which, in three days of usage, was 12 of 30 `get_set` calls.
+  - `list_regulations` and `get_regulation` report `threatCount`: how many
+    species have a usage-derived set, present only where a list exists. Usage
+    needs a closed sample window, so M-A and M-B have none — previously
+    discoverable only by calling `list_threats` and reading its error.
+  - A `get_set` miss names the coverage it fell outside — `No curated set for
+    "Gengar"; sets exist for Regulation Set M-C's 24 ranked species only, and
+    `list_threats` lists them.` — and the tool description states the limit up
+    front, so a caller can check `threatCount` first.
+  - Asking for a species in a regulation that has no list at all is now its own
+    error. It previously reported the species as missing: the regulation scope
+    filtered the list set to nothing, and the lookup could not tell that from a
+    species that genuinely has no set.
+
 ## [4.0.0] - 2026-09-18
 
 ### Changed
