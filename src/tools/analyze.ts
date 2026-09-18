@@ -11,13 +11,81 @@ import { getThreatList } from '../threats.js';
 import { ok, wrap, requireExists, READ_ONLY_ANNOTATIONS } from '../result.js';
 import { evMap, championsPointsMap } from './schemas.js';
 
+/** One member's score against a known opponent; shared by `picks` and `leftBehind`. */
+const bringCandidate = z.object({
+  species: z.string().describe('Species name of the member.'),
+  offensive: z.number().int().describe('Opponent species this member hits super-effectively, from STAB or a supplied move.'),
+  defensive: z.number().int().describe('Opponent species that hit this member super-effectively on their STAB alone \u2014 team preview shows no sets.'),
+  score: z.number().int().describe('`offensive` minus `defensive`: the ranking key.'),
+});
+
+/**
+ * Which four of the six to bring against a known opponent.
+ *
+ * Pokémon Champions team preview shows the opponent's species and nothing else —
+ * ranked is closed teamlist — so a species-level type read is the right
+ * granularity here rather than a shortcut. Each member scores the number of
+ * opponent species it hits super-effectively minus the number that hit it
+ * super-effectively; the four highest come, and the types that leaves stacked and
+ * uncovered are reported so the cost of the cut is visible.
+ */
+function planBringFour(
+  members: { species: string; types: string[]; moveTypes: string[] }[],
+  opponent: { name: string; types: string[] }[],
+) {
+  const scored = members.map((m) => {
+    const attackTypes = new Set([...m.types, ...m.moveTypes]);
+    let offensive = 0;
+    let defensive = 0;
+    for (const o of opponent) {
+      if ([...attackTypes].some((t) => typeEffectiveness(t, o.types, 9) > 1)) offensive++;
+      if (o.types.some((t) => typeEffectiveness(t, m.types, 9) > 1)) defensive++;
+    }
+    return { species: m.species, types: m.types, offensive, defensive, score: offensive - defensive };
+  });
+
+  scored.sort(
+    (a, b) =>
+      b.score - a.score ||
+      b.offensive - a.offensive ||
+      a.defensive - b.defensive ||
+      a.species.localeCompare(b.species),
+  );
+
+  const picks = scored.slice(0, 4);
+  const atRiskTypes = TYPES18.filter((t) => {
+    let weak = 0;
+    let covered = 0;
+    for (const p of picks) {
+      const eff = typeEffectiveness(t, p.types, 9);
+      if (eff > 1) weak++;
+      else if (eff < 1) covered++;
+    }
+    return weak >= 2 && covered === 0;
+  });
+
+  const report = ({ species, offensive, defensive, score }: (typeof scored)[number]) => ({
+    species,
+    offensive,
+    defensive,
+    score,
+  });
+
+  return {
+    opponent: opponent.map((o) => o.name),
+    picks: picks.map(report),
+    leftBehind: scored.slice(4).map(report),
+    atRiskTypes,
+  };
+}
+
 export function registerAnalyzeTools(server: McpServer) {
   server.registerTool(
     'analyze_team',
     {
       title: 'Analyze team synergy',
       description:
-        'Analyze a whole team\u2019s type synergy: per-type weak, resist, and immune counts with the types at risk, super-effective coverage from STAB and supplied moves, speed placement, and a transparent 0-100 heuristic score \u2014 a quick signal, not a metagame rating. With `regulation` it also reports `threatCoverage`: how the team fares against that regulation\u2019s most-used sets, each threat\u2019s real nature, EVs and Mega form included, listing the threats nothing on the team hits super-effectively. Use `get_type_matchup` or `get_type` for one matchup. Each entry is a `species` with optional `moves`, `nature`, `evs`/`championsPoints` and `item`; unknown moves are collected into `unknownMoves`, unknown species error. Read-only and offline over the bundled dataset.',
+        'Analyze a whole team\u2019s type synergy: per-type weak, resist, and immune counts with the types at risk, super-effective coverage from STAB and supplied moves, speed placement, and a transparent 0-100 heuristic score \u2014 a quick signal, not a metagame rating. With `regulation` it also reports `threatCoverage`: how the team fares against that regulation\u2019s most-used sets, each threat\u2019s real nature, EVs and Mega form included, listing the threats nothing on the team hits super-effectively. With `opponent` it reports `bringFour`: which four of your six to bring against that team, scored on the types team preview shows, plus the types that leaves stacked. Use `get_type_matchup` or `get_type` for one matchup. Each entry is a `species` with optional `moves`, `nature`, `evs`/`championsPoints` and `item`; unknown moves are collected into `unknownMoves`, unknown species error. Read-only and offline over the bundled dataset.',
       annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {
         team: z
@@ -51,6 +119,14 @@ export function registerAnalyzeTools(server: McpServer) {
           .string()
           .optional()
           .describe('Optional regulation set id, e.g. "m-c"; when given, the reply also lists legal threats whose base speed beats your fastest member. Unknown ids return an isError.'),
+        opponent: z
+          .array(z.string())
+          .min(1)
+          .max(6)
+          .optional()
+          .describe(
+            'Optional opponent team as species names, e.g. ["Salamence", "Sneasler", "Kingambit"]; the reply then recommends which four of your six to bring. This is what team preview gives you \u2014 species only, no sets \u2014 so the read is type-based. Unknown names return an isError.',
+          ),
       },
       outputSchema: {
         team: z
@@ -132,6 +208,22 @@ export function registerAnalyzeTools(server: McpServer) {
               .describe('Caveat that threats are base-speed comparisons only; present only when `regulation` was supplied.'),
           })
           .describe('Where the team sits on the speed spectrum, plus legal faster threats when a regulation was given.'),
+        bringFour: z
+          .object({
+            opponent: z.array(z.string()).describe('The opponent team as resolved species names, in the order supplied.'),
+            picks: z
+              .array(bringCandidate)
+              .describe('Up to four members to bring, best first \u2014 fewer only when the team itself has fewer than four.'),
+            leftBehind: z.array(bringCandidate).describe('The members not recommended; empty when the team has four or fewer.'),
+            atRiskTypes: z
+              .array(z.string())
+              .describe(
+                'Types at least two of the recommended four are weak to with none of them resisting or immune \u2014 the cost of the cut, worth knowing before you commit to it.',
+              ),
+            note: z.string().describe('How the pick is scored, and what it cannot see.'),
+          })
+          .optional()
+          .describe('Which four of the six to bring; present only when `opponent` was supplied.'),
         threatCoverage: z
           .object({
             regulation: z.string().describe('Display name of the regulation whose threat list was used, e.g. "Regulation Set M-C".'),
@@ -189,6 +281,7 @@ export function registerAnalyzeTools(server: McpServer) {
           item?: string;
         }[];
         regulation?: string;
+        opponent?: string[];
       }) => {
         const dex = getDex(9);
 
@@ -292,6 +385,19 @@ export function registerAnalyzeTools(server: McpServer) {
           fasterThreats.sort((a, b) => b.baseSpe - a.baseSpe);
         }
 
+        // --- Which four to bring ---
+        const opponentSpecies = (args.opponent ?? []).map((name) => {
+          const sp = dex.species.get(name);
+          requireExists(sp, 'Pokemon species', name);
+          return sp;
+        });
+        const bringFour = opponentSpecies.length
+          ? {
+              ...planBringFour(members, opponentSpecies),
+              note: 'Scored on type alone, which is what team preview gives you: ranked is closed teamlist, so the opponent\u2019s sets are unknown by design. `offensive` counts the opponent species a member hits super-effectively from STAB or a supplied move, `defensive` counts those that hit it back on their STAB. Speed, bulk, damage rolls and abilities are not modelled here \u2014 pair it with `threatCoverage` or `calculate_damage` for those.',
+            }
+          : undefined;
+
         // --- Threat coverage against the sets the meta actually plays ---
         const threatList = args.regulation ? getThreatList(args.regulation) : undefined;
         const fastestMember = [...members].sort((a, b) => b.speed - a.speed)[0];
@@ -361,6 +467,7 @@ export function registerAnalyzeTools(server: McpServer) {
                 }
               : {}),
           },
+          ...(bringFour ? { bringFour } : {}),
           ...(threatCoverage && threatList
             ? {
                 threatCoverage: {
