@@ -7,7 +7,6 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { ModdedDex } from '@pkmn/dex';
 import {
   getDex,
-  normalizeGen,
   toID,
   speciesToObj,
   moveToObj,
@@ -20,7 +19,6 @@ import {
   TYPES18,
 } from '../dex.js';
 import { ok, wrap, requireExists, READ_ONLY_ANNOTATIONS } from '../result.js';
-import { genSchema } from './schemas.js';
 
 /**
  * Output-schema fragments. Every lookup below returns a projection built in
@@ -135,13 +133,12 @@ export function registerDataTools(server: McpServer) {
     {
       title: 'Get Pokémon data',
       description:
-        'Look up one Pokémon and return its competitive profile: types, base stats and BST, abilities by slot, singles/doubles tier, weight, gender ratio, egg groups, and evolutions. Accepts any Showdown name or form, case- and punctuation-insensitive ("garchomp", "Ogerpon-Wellspring", "rotom wash"); unknown names return an isError listing near matches. Use `search_dex` when you only have a partial name, `list_forms` for alternate or cosmetic forms, and `calculate_stats` when you need stats computed from EVs, IVs, and nature. Read-only and offline over the bundled Showdown dataset — no network, auth, or rate limits.',
+        'Look up one Pokémon and return its competitive profile: types, base stats and BST, abilities by slot, weight, gender ratio, egg groups, and evolutions. Accepts any Showdown name or form, case- and punctuation-insensitive ("garchomp", "Ogerpon-Wellspring", "rotom wash"); unknown names return an isError listing near matches. Use `search_dex` when you only have a partial name, `list_forms` for alternate or cosmetic forms, and `calculate_stats` when you need stats computed from EVs, IVs, and nature. Read-only and offline over the bundled Showdown dataset — no network, auth, or rate limits.',
       annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {
         species: z
           .string()
           .describe('Species or form name, e.g. "Garchomp", "Ogerpon-Wellspring", "Rotom-Wash".'),
-        generation: genSchema,
       },
       outputSchema: {
         name: z.string().describe('Display name of the entry, e.g. "Garchomp" or "Ogerpon-Wellspring".'),
@@ -149,15 +146,10 @@ export function registerDataTools(server: McpServer) {
         gen: z.number().describe('Generation this entry was introduced in; 0 for entries outside the numbered generations (e.g. MissingNo.).'),
         types: z
           .array(z.string())
-          .describe(`Typing in the requested generation, in order, e.g. ["Dragon", "Ground"]. One of ${TYPE_NAMES}.`),
+          .describe(`Typing, in order, e.g. ["Dragon", "Ground"]. One of ${TYPE_NAMES}.`),
         baseStats: statsTable,
         bst: z.number().describe('Base stat total — the sum of `baseStats`.'),
         abilities: abilitySlots,
-        tier: z
-          .string()
-          .describe('Singles tier label from the bundled dataset, e.g. "OU", "UU", "LC".'),
-        doublesTier: z.string().describe('Doubles (VGC) tier label from the bundled dataset.'),
-        natDexTier: z.string().describe('National Dex tier label; the empty string when the entry has none.'),
         baseSpecies: z.string().describe('Name of the species this entry belongs to; equal to `name` for a base forme.'),
         forme: z.string().optional().describe('Forme label when this entry is an alternate forme, e.g. "Mega", "Wash"; absent for the base forme.'),
         baseForme: z.string().optional().describe('Label of the species\' default forme when it has formes, e.g. "Teal" for Ogerpon; absent otherwise.'),
@@ -211,10 +203,6 @@ export function registerDataTools(server: McpServer) {
           .optional()
           .describe('Name of the G-Max move, when this entry is a Gigantamax-capable forme; absent otherwise.'),
         cannotDynamax: z.boolean().describe('true when the species cannot Dynamax.'),
-        requiredTeraType: z
-          .string()
-          .optional()
-          .describe('Tera type this entry is locked to (e.g. an Ogerpon mask); absent when the Tera type is freely chosen.'),
         isNonstandard: z
           .string()
           .nullable()
@@ -225,8 +213,8 @@ export function registerDataTools(server: McpServer) {
           .describe('Dataset tags such as ["Sub-Legendary"] or ["Mythical"]; empty when the entry is untagged.'),
       },
     },
-    wrap(async (args: { species: string; generation: number }) => {
-      const gen = normalizeGen(args.generation);
+    wrap(async (args: { species: string }) => {
+      const gen = 9;
       const s = requireSpecies(getDex(gen), args.species);
       return ok(speciesToObj(s));
     }),
@@ -237,19 +225,18 @@ export function registerDataTools(server: McpServer) {
     {
       title: 'List Pokémon forms',
       description:
-        'List every form of one species — base, alternate, cosmetic, and battle-only — with each form\'s types, base stats, abilities, and tier, plus the total count. Forms that do not exist in the requested generation are returned with a note rather than dropped, so a missing entry is visible. Use it before assuming a form exists; for a single species\' full profile use `get_pokemon`, and to search names across species use `search_dex`. Read-only and offline; unknown species return an isError with near matches.',
+        'List every form of one species — base, alternate, cosmetic, and battle-only — with each form\'s types, base stats, abilities, plus the total count. Forms that have no data are returned with a note rather than dropped, so a missing entry is visible. Use it before assuming a form exists; for a single species\' full profile use `get_pokemon`, and to search names across species use `search_dex`. Read-only and offline; unknown species return an isError with near matches.',
       annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {
         species: z
           .string()
           .describe('Base species to expand, e.g. "Rotom", "Ogerpon", "Gholdengo".'),
-        generation: genSchema,
       },
       outputSchema: {
         baseSpecies: z
           .string()
           .describe('Name of the base species whose forms are listed, e.g. "Rotom" when asked for "Rotom-Wash".'),
-        count: z.number().describe('Number of entries in `forms`, including placeholders for forms missing in this generation.'),
+        count: z.number().describe('Number of entries in `forms`, including placeholders for forms with no data.'),
         forms: z
           .array(
             z.union([
@@ -260,8 +247,6 @@ export function registerDataTools(server: McpServer) {
                   baseStats: statsTable,
                   bst: z.number().describe('Base stat total of the form.'),
                   abilities: abilitySlots,
-                  tier: z.string().describe('Singles tier label of the form; may be empty for untiered forms.'),
-                  doublesTier: z.string().describe('Doubles (VGC) tier label of the form; may be empty.'),
                   isCosmetic: z.boolean().describe('true when the form differs only cosmetically.'),
                   battleOnly: z
                     .union([z.string(), z.array(z.string())])
@@ -270,20 +255,20 @@ export function registerDataTools(server: McpServer) {
                   isMega: z.boolean().optional().describe('true for Mega Evolutions; absent otherwise.'),
                   isPrimal: z.boolean().optional().describe('true for Primal Reversions; absent otherwise.'),
                 })
-                .describe('A form that exists in the requested generation, carrying the same fields as `get_pokemon` (minus evolutions and the long tail of dataset metadata).'),
+                .describe('A form that exists in the dataset, carrying the same fields as `get_pokemon` (minus evolutions and the long tail of dataset metadata).'),
               z
                 .object({
-                  name: z.string().describe('Form name that has no data in the requested generation.'),
-                  note: z.string().describe('Why the entry is empty — currently always "unavailable in this generation".'),
+                  name: z.string().describe('Form name that has no data in the dataset.'),
+                  note: z.string().describe('Why the entry is empty — currently always "unavailable in the dataset".'),
                 })
-                .describe('Placeholder for a form name the dataset knows about but that does not exist in the requested generation; distinguishes "no such form" from "form missing here".'),
+                .describe('Placeholder for a form name the dataset knows about but that distinguishes "no such form" from "form missing here"; distinguishes "no such form" from "form missing here".'),
             ]),
           )
           .describe('One entry per known form name of the species — base, alternate, cosmetic, and battle-only — either a full form profile or a `{name, note}` placeholder.'),
       },
     },
-    wrap(async (args: { species: string; generation: number }) => {
-      const gen = normalizeGen(args.generation);
+    wrap(async (args: { species: string }) => {
+      const gen = 9;
       const dex = getDex(gen);
       const base = requireSpecies(dex, args.species);
       const names = new Set<string>([base.name]);
@@ -292,7 +277,7 @@ export function registerDataTools(server: McpServer) {
       }
       const forms = [...names].map((n) => {
         const f = dex.species.get(n);
-        if (!f.exists) return { name: n, note: 'unavailable in this generation' };
+        if (!f.exists) return { name: n, note: 'unavailable in the dataset' };
         const o = speciesToObj(f);
         return {
           name: o.name,
@@ -300,8 +285,6 @@ export function registerDataTools(server: McpServer) {
           baseStats: o.baseStats,
           bst: o.bst,
           abilities: o.abilities,
-          tier: o.tier,
-          doublesTier: o.doublesTier,
           isCosmetic: o.isCosmeticForme,
           battleOnly: o.battleOnly,
           isMega: o.isMega,
@@ -321,7 +304,7 @@ export function registerDataTools(server: McpServer) {
     {
       title: 'Search the dataset by name',
       description:
-        'Find species, moves, items, abilities, or natures by case-insensitive substring of name or Showdown id, sorted by National Dex number and truncated to `limit`. Use it when the exact name is uncertain, then call the matching lookup (`get_pokemon`, `get_move`, `get_item`, `get_ability`, `get_nature`) with the name it returns. Exactly one `kind` is searched per call; species results carry their tier, and the reply echoes kind, query, and total match count. Read-only and offline; a blank query is rejected as an error instead of dumping the dataset.',
+        'Find species, moves, items, abilities, or natures by case-insensitive substring of name or Showdown id, sorted by National Dex number and truncated to `limit`. Use it when the exact name is uncertain, then call the matching lookup (`get_pokemon`, `get_move`, `get_item`, `get_ability`, `get_nature`) with the name it returns. Exactly one `kind` is searched per call; and the reply echoes kind, query, and total match count. Read-only and offline; a blank query is rejected as an error instead of dumping the dataset.',
       annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {
         query: z
@@ -338,7 +321,6 @@ export function registerDataTools(server: McpServer) {
           .max(100)
           .default(20)
           .describe('Maximum results returned, 1-100 (default 20).'),
-        generation: genSchema,
       },
       outputSchema: {
         kind: z
@@ -353,33 +335,29 @@ export function registerDataTools(server: McpServer) {
             z.object({
               name: z.string().describe('Match name, usable as-is with the matching lookup tool, e.g. "Garchomp".'),
               num: z.number().describe('National Dex (or table) number, the sort key for this list.'),
-              tier: z
-                .string()
-                .optional()
-                .describe('Competitive tier — present only when `kind` is "species"; absent for moves, items, abilities, and natures.'),
             }),
           )
           .describe('Matching entries sorted by `num` ascending and truncated to `limit`; empty when nothing matched.'),
       },
     },
     wrap(
-      async (args: { query: string; kind: 'species' | 'move' | 'item' | 'ability' | 'nature'; limit: number; generation: number }) => {
-        const gen = normalizeGen(args.generation);
+      async (args: { query: string; kind: 'species' | 'move' | 'item' | 'ability' | 'nature'; limit: number }) => {
+        const gen = 9;
         const dex = getDex(gen);
         const q = args.query.toLowerCase().trim();
         if (!q) throw new Error('query must be non-empty.');
 
-        const results: { name: string; num: number; tier?: string }[] = [];
-        const push = (all: { id: string; name: string; num: number; tier?: string }[]) => {
+        const results: { name: string; num: number }[] = [];
+        const push = (all: { id: string; name: string; num: number }[]) => {
           for (const e of all) {
             if (e.name.toLowerCase().includes(q) || e.id.includes(q)) {
-              results.push({ name: e.name, num: e.num, tier: e.tier });
+              results.push({ name: e.name, num: e.num });
             }
           }
         };
 
         if (args.kind === 'species') {
-          push(dex.species.all().map((s) => ({ id: s.id, name: s.name, num: s.num, tier: s.tier })));
+          push(dex.species.all().map((s) => ({ id: s.id, name: s.name, num: s.num })));
         } else if (args.kind === 'move') {
           push(dex.moves.all().map((m) => ({ id: m.id, name: m.name, num: m.num })));
         } else if (args.kind === 'item') {
@@ -405,7 +383,6 @@ export function registerDataTools(server: McpServer) {
       annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {
         move: z.string().describe('Move name, e.g. "Earthquake", "Make It Rain", "Dragon Claw".'),
-        generation: genSchema,
       },
       outputSchema: {
         name: z.string().describe('Move name, e.g. "Earthquake".'),
@@ -482,8 +459,8 @@ export function registerDataTools(server: McpServer) {
           .describe('"Past", "Future", "Unobtainable", or "CAP" when the move is not available in the current games; null when it is standard.'),
       },
     },
-    wrap(async (args: { move: string; generation: number }) => {
-      const gen = normalizeGen(args.generation);
+    wrap(async (args: { move: string }) => {
+      const gen = 9;
       const dex = getDex(gen);
       const m = dex.moves.get(args.move);
       const suggestions = m.exists ? [] : fuzzyMatches(dex.moves.all().map((x) => x.id), dex.moves.all().map((x) => x.name), args.move);
@@ -500,7 +477,6 @@ export function registerDataTools(server: McpServer) {
       annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {
         item: z.string().describe('Item name, e.g. "Choice Band", "Assault Vest", "Leftovers".'),
-        generation: genSchema,
       },
       outputSchema: {
         name: z.string().describe('Item name, e.g. "Choice Band".'),
@@ -552,8 +528,8 @@ export function registerDataTools(server: McpServer) {
           .describe('"Past", "Future", "Unobtainable", or "CAP" when the item is not available in the current games; null when it is standard.'),
       },
     },
-    wrap(async (args: { item: string; generation: number }) => {
-      const gen = normalizeGen(args.generation);
+    wrap(async (args: { item: string }) => {
+      const gen = 9;
       const dex = getDex(gen);
       const i = dex.items.get(args.item);
       const suggestions = i.exists ? [] : fuzzyMatches(dex.items.all().map((x) => x.id), dex.items.all().map((x) => x.name), args.item);
@@ -570,7 +546,6 @@ export function registerDataTools(server: McpServer) {
       annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {
         ability: z.string().describe('Ability name, e.g. "Intimidate", "Protosynthesis".'),
-        generation: genSchema,
       },
       outputSchema: {
         name: z.string().describe('Ability name, e.g. "Intimidate".'),
@@ -585,8 +560,8 @@ export function registerDataTools(server: McpServer) {
           .describe('"Past", "Future", "Unobtainable", or "CAP" when the ability is not available in the current games; null when it is standard.'),
       },
     },
-    wrap(async (args: { ability: string; generation: number }) => {
-      const gen = normalizeGen(args.generation);
+    wrap(async (args: { ability: string }) => {
+      const gen = 9;
       const dex = getDex(gen);
       const a = dex.abilities.get(args.ability);
       const suggestions = a.exists ? [] : fuzzyMatches(dex.abilities.all().map((x) => x.id), dex.abilities.all().map((x) => x.name), args.ability);
@@ -603,7 +578,6 @@ export function registerDataTools(server: McpServer) {
       annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {
         nature: z.string().describe('Nature name, e.g. "Jolly", "Timid", "Impish".'),
-        generation: genSchema,
       },
       outputSchema: {
         name: z.string().describe('Nature name, e.g. "Jolly".'),
@@ -618,8 +592,8 @@ export function registerDataTools(server: McpServer) {
         gen: z.number().describe('Generation the nature system was introduced in.'),
       },
     },
-    wrap(async (args: { nature: string; generation: number }) => {
-      const gen = normalizeGen(args.generation);
+    wrap(async (args: { nature: string }) => {
+      const gen = 9;
       const dex = getDex(gen);
       const n = dex.natures.get(args.nature);
       return ok(natureToObj(requireExists(n, 'nature', args.nature)));
@@ -631,11 +605,10 @@ export function registerDataTools(server: McpServer) {
     {
       title: 'Get a Pokémon learnset',
       description:
-        'List every move a Pokémon can learn in a generation, grouped by acquisition method (level-up with the level, TM/TR, egg, tutor, event, and so on). This is the species\u2019 own learnset: a move it inherits from a pre-evolution — an egg move such as Grookey\u2019s Fake Out — is filed against that pre-evolution, so use `check_legality` to decide whether a set\u2019s move is legal in a regulation. Accepts any species or form name; unknown species return an isError with near matches, and a species with no learnset data errors instead of returning an empty list. Read-only and offline.',
+        'List every move a Pokémon can learn, grouped by acquisition method (level-up with the level, TM/TR, egg, tutor, event, and so on). This is the species\u2019 own learnset: a move it inherits from a pre-evolution — an egg move such as Grookey\u2019s Fake Out — is filed against that pre-evolution, so use `check_legality` to decide whether a set\u2019s move is legal in a regulation. Accepts any species or form name; unknown species return an isError with near matches, and a species with no learnset data errors instead of returning an empty list. Read-only and offline.',
       annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {
         species: z.string().describe('Species or form name, e.g. "Garchomp", "Ogerpon-Wellspring".'),
-        generation: genSchema,
       },
       outputSchema: {
         species: z.string().describe('Name of the species whose learnset this is, resolved from the argument, e.g. "Garchomp".'),
@@ -680,13 +653,13 @@ export function registerDataTools(server: McpServer) {
         movesBySource: z
           .record(z.string(), z.array(z.string()))
           .describe(
-            'Learned moves grouped by how they are acquired, keyed by "Level-up", "TM", "Egg", "Tutor", "Event", "Raid/Event", "Virtual Console transfer", "Dream World", "Pre-evolution", or "Other"; a move learned more than one way appears under each. Each list is sorted by move name and holds display names, e.g. {"TM": ["Earthquake"], "Level-up": ["Dragon Claw"]}. Empty when the generation records no moves.',
+            'Learned moves grouped by how they are acquired, keyed by "Level-up", "TM", "Egg", "Tutor", "Event", "Raid/Event", "Virtual Console transfer", "Dream World", "Pre-evolution", or "Other"; a move learned more than one way appears under each. Each list is sorted by move name and holds display names, e.g. {"TM": ["Earthquake"], "Level-up": ["Dragon Claw"]}. Empty when the dataset records no moves.',
           ),
         totalMoves: z.number().describe('Number of distinct moves the species can learn, counted before grouping by source.'),
       },
     },
-    wrap(async (args: { species: string; generation: number }) => {
-      const gen = normalizeGen(args.generation);
+    wrap(async (args: { species: string }) => {
+      const gen = 9;
       const dex = getDex(gen);
       const s = requireSpecies(dex, args.species);
       const ls = await dex.learnsets.getByID(toID(s.name));
@@ -704,7 +677,6 @@ export function registerDataTools(server: McpServer) {
       annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {
         type: z.string().describe('Type name, e.g. "Steel", "Fairy", "Ground".'),
-        generation: genSchema,
       },
       outputSchema: {
         name: z.string().describe('Type name, e.g. "Steel".'),
@@ -712,7 +684,7 @@ export function registerDataTools(server: McpServer) {
         isNonstandard: z
           .string()
           .nullable()
-          .describe('"Future" when the type does not exist yet in the requested generation (e.g. Dark in generation 1) and "Past" when it no longer exists; null for types that are standard in that generation.'),
+          .describe('"Future" when the type does not exist in the dataset (e.g. Dark in generation 1) and "Past" when it no longer exists; null for types that are standard in that generation.'),
         damageTaken: z
           .record(z.string(), z.number())
           .describe(
@@ -739,8 +711,8 @@ export function registerDataTools(server: McpServer) {
           .describe('IVs needed to make Hidden Power come out as this type, keyed by stat id; only the stats this type pins down are listed.'),
       },
     },
-    wrap(async (args: { type: string; generation: number }) => {
-      const gen = normalizeGen(args.generation);
+    wrap(async (args: { type: string }) => {
+      const gen = 9;
       const dex = getDex(gen);
       const t = dex.types.get(args.type);
       return ok(typeToObj(requireExists(t, 'type', args.type)));
@@ -763,7 +735,6 @@ export function registerDataTools(server: McpServer) {
           .string()
           .optional()
           .describe('Defending type or species name; a species contributes its current-generation types.'),
-        generation: genSchema,
       },
       outputSchema: {
         attacker: z
@@ -810,8 +781,8 @@ export function registerDataTools(server: McpServer) {
           .describe('Present only alongside `chart`, spelling out how to read the full matrix (rows are attackers, columns are defenders) and the multiplier scale.'),
       },
     },
-    wrap(async (args: { attacker?: string; defender?: string; generation: number }) => {
-      const gen = normalizeGen(args.generation);
+    wrap(async (args: { attacker?: string; defender?: string }) => {
+      const gen = 9;
       const dex = getDex(gen);
 
       const resolveDefender = (name: string): { label: string; types: string[] } => {

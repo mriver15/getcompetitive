@@ -7,18 +7,22 @@
 [![Glama](https://glama.ai/mcp/servers/mriver15/getcompetitive/badges/score.svg)](https://glama.ai/mcp/servers/mriver15/getcompetitive)
 
 A [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server that gives
-AI agents everything needed to build, analyze, and validate competitive Pokémon
-teams — including **Pokémon Champions / VGC** regulations.
+AI agents what they need to build, analyze, and validate **Pokémon Champions**
+teams: the official Regulation Sets, the usage-derived meta, and the battle math
+behind them.
+
+Champions is the only game here. The server speaks its terms — doubles, level 50,
+Mega Evolution once per battle, 66 stat points, no Terastallization — and the
+Smogon-tier and archetype surface that used to sit alongside it is gone.
 
 ## What it provides
 
-- **25 tools** across five domains: data, team building, meta (usage-derived), battle mechanics, and official regulation sets
+- **21 tools** across five domains: data, team analysis, meta (usage-derived), battle mechanics, and official regulation sets
 - **Structured, agent-first definitions** — every tool declares MCP annotations and an output schema, returns `structuredContent` alongside JSON text, and documents all of its parameters; the deterministic half of the [TDQS](https://tdqs.dev) checklist is linted in CI
-- Full **Pokémon Showdown** competitive dataset — species, alternate forms, stats, moves, items, abilities, natures, learnsets, types, tiers
-- **Battle math** from Smogon's calculator — stat calculation and full damage calculation (weather, terrain, boosts, items, Tera)
+- Full **Pokémon Showdown** dataset — species, alternate forms, stats, moves, items, abilities, natures, learnsets, types
+- **Battle math** from Smogon's calculator — stat calculation and full damage calculation (weather, terrain, boosts, items)
 - **Both EV scales** — the 0-252 EVs the calculator takes and Pokémon Champions' own 66 stat points, accepted on input and reported alongside every spread
 - **Official Regulation Sets** (M-A → M-C) with seasonal legal rosters and team legality checking
-- Generation-aware data (1–9, default 9)
 
 Built on [`@pkmn/dex`](https://github.com/pkmn/EPOKe) (Showdown data) and
 [`@smogon/calc`](https://github.com/smogon/calc) (battle math).
@@ -28,7 +32,7 @@ Built on [`@pkmn/dex`](https://github.com/pkmn/EPOKe) (Showdown data) and
 ### Data
 | Tool | Purpose |
 | --- | --- |
-| `get_pokemon` | Types, base stats, BST, abilities, tiers, forms, weight, gender, evolutions |
+| `get_pokemon` | Types, base stats, BST, abilities, forms, weight, gender, evolutions |
 | `list_forms` | All forms of a species (alternate, cosmetic, battle-only) |
 | `search_dex` | Fuzzy name search across species / moves / items / abilities / natures |
 | `get_move` | Type, category, power, accuracy, PP, priority, target, secondary effects |
@@ -39,13 +43,9 @@ Built on [`@pkmn/dex`](https://github.com/pkmn/EPOKe) (Showdown data) and
 | `get_type` | Defensive weaknesses, resistances, immunities |
 | `get_type_matchup` | Matchup multiplier, offensive coverage, or defensive chart (defender can be a species) |
 
-### Team building
+### Team analysis
 | Tool | Purpose |
 | --- | --- |
-| `list_archetypes` | Recognized archetypes (Hyper Offense, Rain, Stall, Trick Room, …) with roles + members |
-| `get_archetype` | Full detail: description, roles, members, strengths, weaknesses, counters, tips |
-| `list_tiers` | All legal Pokemon grouped by competitive tier (singles/doubles) |
-| `list_speed_tiers` | Speed of every Pokemon in a tier at common investment levels, sorted |
 | `analyze_team` | Team synergy: stacked defensive weaknesses, offensive coverage gaps, speed placement, a heuristic score, and — with a regulation — coverage against the meta's real sets |
 
 ### Meta (usage-derived)
@@ -69,10 +69,6 @@ Built on [`@pkmn/dex`](https://github.com/pkmn/EPOKe) (Showdown data) and
 | `calculate_matchups` | Batch damage: one attacker vs many defenders — best move, damage range, KO chance, who moves first |
 | `check_speed` | Final Speed (nature/EV/IV/boost/Scarf) vs a regulation roster's invested/uninvested speeds |
 | `optimize_evs` | EV spread solver: min EVs to survive / outspeed / guarantee a KO, then maximize a stat |
-
-> **Two taxonomies.** `list_tiers` / `list_speed_tiers` use **Smogon fan tiers**
-> (OU/UU/Uber — a community laddering system). The Regulation tools use the
-> **official Pokémon Champions / VGC Regulation Sets** (seasonal legal rosters).
 
 ## Install
 

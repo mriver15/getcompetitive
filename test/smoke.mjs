@@ -51,10 +51,6 @@ const calls = [
     move: 'Moonblast',
     field: { weather: 'Sun' },
   }],
-  ['list_speed_tiers', { tier: 'OU', level: 50, query: 'dragapult' }],
-  ['list_tiers', { league: 'singles' }],
-  ['list_archetypes', {}],
-  ['get_archetype', { name: 'rain' }],
   ['list_threats', { regulation: 'm-c' }],
   ['get_set', { species: 'Garchomp' }],
   // Form names resolve to their base species' set (Indeedee-F is the played form).
@@ -135,7 +131,6 @@ const calls = [
     survive: { attacker: { species: 'Incineroar', level: 50, ability: 'Intimidate', evs: { atk: 252 } }, move: 'Flare Blitz' },
   }],
   ['optimize_evs', { species: 'Garchomp', level: 50, outspeed: { speed: 150 } }],
-  ['list_tiers', { league: 'doubles', tier: 'duu' }],
   ['list_threats', {}],
   ['get_set', { species: 'Incineroar', regulation: 'm-c' }],
   ['analyze_team', {
@@ -153,6 +148,15 @@ const calls = [
 ];
 
 let failed = 0;
+
+// Champions only: the Smogon-tier and archetype surface was removed deliberately
+// and must not creep back in.
+for (const gone of ['list_tiers', 'list_speed_tiers', 'list_archetypes', 'get_archetype']) {
+  if (listed.tools.some((t) => t.name === gone)) {
+    console.log(`=== ${gone} is exposed but should not be ===`);
+    failed++;
+  }
+}
 for (const [name, args] of calls) {
   const res = await client.callTool({ name, arguments: args });
   const text = (res.content ?? []).filter((c) => c.type === 'text').map((c) => c.text).join('');

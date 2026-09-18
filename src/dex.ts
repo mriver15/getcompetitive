@@ -25,7 +25,7 @@ export { toID };
 export const STATS = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'] as const;
 export type StatID = (typeof STATS)[number];
 
-/** The 18 classic types (Stellar is gen-9 Terastal-only; queried separately). */
+/** The 18 classic types; Stellar is Terastal-only and outside them. */
 export const TYPES18 = [
   'Normal', 'Fighting', 'Flying', 'Poison', 'Ground', 'Rock', 'Bug', 'Ghost', 'Steel',
   'Fire', 'Water', 'Grass', 'Electric', 'Psychic', 'Ice', 'Dragon', 'Dark', 'Fairy',
@@ -55,14 +55,6 @@ export function getCalcGen(gen: GenerationNum) {
   return Generations.get(gen);
 }
 
-export function normalizeGen(input: number | undefined): GenerationNum {
-  const n = input ?? 9;
-  if (!Number.isInteger(n) || n < 1 || n > 9) {
-    throw new Error(`Unsupported generation ${input}; supported: 1-9 (default 9).`);
-  }
-  return n as GenerationNum;
-}
-
 /** Clean, JSON-safe projection of a Species for LLM consumption. */
 export function speciesToObj(s: Species) {
   return {
@@ -73,9 +65,6 @@ export function speciesToObj(s: Species) {
     baseStats: s.baseStats,
     bst: s.bst,
     abilities: s.abilities,
-    tier: s.tier,
-    doublesTier: s.doublesTier,
-    natDexTier: s.natDexTier,
     baseSpecies: s.baseSpecies || undefined,
     forme: s.forme || undefined,
     baseForme: s.baseForme || undefined,
@@ -100,7 +89,6 @@ export function speciesToObj(s: Species) {
     isPrimal: s.isPrimal || undefined,
     canGigantamax: s.canGigantamax,
     cannotDynamax: s.cannotDynamax,
-    requiredTeraType: s.requiredTeraType,
     isNonstandard: s.isNonstandard,
     unreleasedHidden: s.unreleasedHidden || undefined,
     tags: s.tags,
@@ -393,7 +381,6 @@ export interface SetInput {
   ability?: string;
   boosts?: Record<string, number>;
   status?: string;
-  teraType?: string;
   abilityOn?: boolean;
   isDynamaxed?: boolean;
   curHP?: number;
@@ -460,7 +447,6 @@ export function buildPokemon(gen: GenerationNum, input: SetInput): Pokemon {
   };
   if (input.item) options.item = input.item;
   if (input.ability) options.ability = input.ability;
-  if (input.teraType) options.teraType = input.teraType;
   if (input.status) options.status = input.status;
   if (input.abilityOn !== undefined) options.abilityOn = input.abilityOn;
   if (input.isDynamaxed !== undefined) options.isDynamaxed = input.isDynamaxed;
@@ -522,7 +508,6 @@ export function damageResult(
     : ([result.damage, result.damage] as [number, number]);
 
   return {
-    generation: gen,
     attacker: {
       species: atk.name,
       ...summarizeSet(atk),
@@ -557,7 +542,6 @@ function summarizeSet(p: Pokemon) {
     ivs: p.ivs,
     item: p.item,
     ability: p.ability,
-    teraType: p.teraType,
     status: p.status || undefined,
     boosts: p.boosts,
   };

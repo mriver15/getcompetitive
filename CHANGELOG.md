@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- **Breaking: the server is Champions-only.** Four tools that served a different
+  game's meta are gone — `list_tiers` and `list_speed_tiers` (Smogon fan tiers),
+  and `list_archetypes` / `get_archetype` together with the 36 KB archetype
+  library behind them, which was Smogon singles and doubles lore about hazards,
+  Defog, Rapid Spin and Salt Cure, none of which exist in Champions. The surface
+  goes from 25 tools to 21; the data, battle-math and regulation tools stay,
+  because a Champions team cannot be built without them.
+- **Breaking: `generation` is gone from every tool.** Champions is one game, so
+  the 1-9 selector, the `generation` field on responses and the `normalizeGen`
+  helper behind them are all removed. Responses still carry `gen` where it is a
+  fact about an entry rather than a request — the generation a species, move,
+  item or ability was introduced in.
+
+### Changed
+
+- **Breaking: Terastallization is gone.** `teraType` is removed from the set
+  inputs and outputs of `calculate_damage`, `calculate_matchups` and
+  `analyze_team`, and from the species profile. Champions has no Tera, so the
+  field could only ever produce a calculation that cannot happen in the game.
+  `analyze_team` now tallies weakness and coverage from a member's own types.
+- **Breaking: species no longer carry Smogon tiers.** `tier`, `doublesTier` and
+  `natDexTier` are removed from `get_pokemon`, `list_forms` and `search_dex`. The
+  `tier` on a threat is unrelated and stays — that is this server's own S/A/B
+  usage band.
+
 ## [2.0.2] - 2026-09-17
 
 ### Added
