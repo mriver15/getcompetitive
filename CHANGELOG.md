@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking: the public surface is now eight compound tools.** The 30
+  dedicated tools are re-exposed as intent-level entrypoints that dispatch on
+  a `mode` field: `lookup` (species/forms/search/move/item/ability/nature/
+  learnset/type/matchup/sprites), `calculate` (stats/damage/matchups/speed/
+  optimize_evs), `analyze_team` (synergy/diagnose), `analyze_battle`
+  (replay/infer), `analyze_meta` (threats/compare/set), `team_io`
+  (parse/format/legality/regulation/regulations), plus `optimize_team` and
+  `prepare_matchup` unchanged. The model picks an intent; the server does the
+  orchestration. Every mode carries the same documented fields and the same
+  per-mode output validation the dedicated tool had — the compound layer
+  captures the existing registrations and dispatches through them, so nothing
+  was reimplemented or silently changed. Clients must migrate call sites to
+  the new names; the workflow prompts already speak the new surface.
+
 ## [4.6.0] - 2026-09-19
 
 ### Added
