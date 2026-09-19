@@ -21,7 +21,85 @@ import { buildServer } from './server.js';
 const port = Number(process.env.PORT ?? 3000);
 const host = process.env.HOST ?? '127.0.0.1';
 
+const APP_HTML = `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>getcompetitive — evidence display</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:52rem;margin:2rem auto;padding:0 1rem;color:#111;background:#fafafa}
+h1{font-size:1.4rem} textarea{width:100%;height:7rem;font-family:ui-monospace,monospace;font-size:.8rem}
+button{font-size:1rem;padding:.4rem .9rem} pre{background:#fff;border:1px solid #ddd;padding:.8rem;overflow:auto;font-size:.8rem}
+.row{display:flex;gap:1rem;flex-wrap:wrap}.box{flex:1;min-width:18rem}
+.tag{display:inline-block;padding:.1rem .4rem;margin:.1rem;border-radius:.3rem;font-size:.75rem}
+.HARD_ANSWER{background:#d9f2d9}.SOFT_ANSWER{background:#e3f2d9}.REVENGE,.SPEED_DEPENDENT,.TRADE{background:#fff3cd}.UNFAVORABLE{background:#f8d7da}.UNKNOWN{background:#eee}
+</style></head><body>
+<h1>getcompetitive — the model converses, this displays the proof</h1>
+<div class="row">
+<div class="box"><label>Your team (paste text)</label><br>
+<textarea id="team">Garchomp @ Garchompite | Sand Veil | Jolly | 252 Atk / 252 Spe | Earthquake / Dragon Claw / Rock Slide / Protect
+Incineroar @ Sitrus Berry | Intimidate | Careful | 32 HP / 14 Def / 20 SpD | Fake Out / Flare Blitz / Parting Shot / Knock Off
+Rillaboom @ Assault Vest | Grassy Surge | Adamant | 252 HP / 252 Atk | Fake Out / Grassy Glide / Wood Hammer / U-turn</textarea></div>
+<div class="box"><label>Opponent (species)</label><br>
+<textarea id="opp" style="height:3rem">Sneasler, Salamence-Mega, Gholdengo, Farigiraf, Kingambit, Rillaboom</textarea>
+<br><button id="go">Analyze</button></div>
+</div>
+<h2 id="status"></h2>
+<pre id="out"></pre>
+<script>
+const call = async (name, args) => {
+  await fetch('/mcp', { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 0, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'evidence-app', version: '0' } } }) });
+  const r = await fetch('/mcp', { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } }) });
+  const j = await r.json();
+  if (j.error) throw new Error(j.error.message);
+  return JSON.parse(j.result.content[0].text);
+};
+document.getElementById('go').onclick = async () => {
+  const status = document.getElementById('status');
+  const out = document.getElementById('out');
+  status.textContent = 'analyzing…';
+  try {
+    const team = (await call('team_io', { mode: 'parse', text: document.getElementById('team').value })).team;
+    const opp = document.getElementById('opp').value.split(',').map((s) => s.trim()).filter(Boolean);
+    const [syn, prep, meta] = await Promise.all([
+      call('analyze_team', { mode: 'synergy', team, regulation: 'm-c', detail: 'evidence' }),
+      call('prepare_matchup', { team, opponent: opp, detail: 'evidence' }),
+      call('analyze_meta', { mode: 'threats' }),
+    ]);
+    const cls = (c) => '<span class="tag ' + c + '">' + c + '</span>';
+    const threatRows = (syn.threatCoverage?.threats ?? []).slice(0, 12).map((t) => t.species + ' ' + (t.answerClass ? cls(t.answerClass) : '') + ' (' + t.usage + '%)').join('\n');
+    const metaTop = (meta.threats ?? []).slice(0, 8).map((t) => t.species + ' ' + t.usage + '% [' + t.tier + ']').join('\n');
+    out.textContent = [
+      'BRING FOUR: ' + prep.recommendedBringFour.picks.map((p) => p.species).join(' / '),
+      '  score ' + prep.recommendedBringFour.score + ' | alternates: ' + prep.recommendedBringFour.alternates.map((a) => a.map((p) => p.species).join('+')).join('; '),
+      'LEADS: ' + prep.possibleLeads.pairs.map((p) => p.support + ' + ' + p.attacker).join(' | '),
+      'PRESERVE: ' + (prep.pokemonToPreserve.join(', ') || '—'),
+      'WIN: ' + prep.winConditions.join(' | '),
+      'LOSE: ' + prep.lossConditions.join(' | '),
+      'CONFIDENCE: ' + prep.matchupConfidence.score + '/100',
+      'KEY ROLLS:',
+      ...prep.relevantDamageCalcs.map((c) => '  ' + c.attacker + ' ' + c.move + ' -> ' + c.defender + ': ' + c.damageRange.join('-') + ' (' + (c.koChance ?? '') + ')'),
+      '',
+      'THREAT MATRIX (battle math, not type chart):',
+      threatRows,
+      '',
+      'META TOP:',
+      metaTop,
+    ].join('\n');
+    status.textContent = 'done — every number above came from the deterministic engine.';
+  } catch (e) {
+    status.textContent = 'error: ' + e.message;
+    out.textContent = '';
+  }
+};
+</script></body></html>`;
+
 const httpServer = http.createServer((req, res) => {
+  if (req.method === 'GET' && (req.url === '/' || req.url === '/app')) {
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+    res.end(APP_HTML);
+    return;
+  }
   void (async () => {
     // Stateless: a fresh server+transport per request, per the SDK's contract
     // that a stateless transport handles exactly one request.
