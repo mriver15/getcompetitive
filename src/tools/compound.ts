@@ -38,6 +38,7 @@ import { registerSpritesTool } from './sprites.js';
 import { registerReplayTool } from './replay.js';
 import { registerInferTool } from './infer.js';
 import { registerOptimizeTeamTool } from './optimize.js';
+import { registerScoutTool } from './scout.js';
 import { READ_ONLY_ANNOTATIONS } from '../result.js';
 import { detailArg, applyLevel, LEVEL_SPECS } from './levels.js';
 
@@ -78,6 +79,7 @@ const COMPOUND: Record<string, Record<string, string>> = {
   analyze_battle: {
     replay: 'analyze_replay',
     infer: 'infer_set',
+    scout: 'scout_opponent',
   },
   analyze_meta: {
     threats: 'list_threats',
@@ -128,6 +130,7 @@ function capture(): Record<string, CapturedTool> {
   registerReplayTool(server);
   registerInferTool(server);
   registerOptimizeTeamTool(server);
+  registerScoutTool(server);
   // SDK-internal map, populated by registerTool with the zod raw shapes and
   // wrapped handlers this module dispatches through; pinned by the smoke suite.
   type RegisteredToolsMap = Record<string, CapturedTool>;

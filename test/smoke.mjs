@@ -341,6 +341,12 @@ if (!/- Fake Out/.test(paste)) {
     md.rising.every((s) => Number((s.current - s.previous).toFixed(1)) === s.delta) &&
       md.emergingCores.every((c) => c.core.length === 2 && c.delta >= 0),
   );
+  check(
+    'compare_meta carries rank deltas, lift and set changes',
+    md.rising.every((s) => typeof s.rankDelta === 'number') &&
+      md.emergingCores.every((c) => typeof c.liftCurrent === 'number' && c.liftCurrent > 0) &&
+      Array.isArray(md.setChanges) && md.setChanges.every((s) => s.item !== undefined),
+  );
   const cmErr = await client.callTool({ name: 'analyze_meta', arguments: { mode: 'compare', regulation: 'm-a' } });
   check('compare_meta names the regulations with history', !!cmErr.isError && cmErr.content[0].text.includes('m-c'));
 
@@ -496,6 +502,40 @@ if (!/- Fake Out/.test(paste)) {
   );
 }
 
+// P2: the scouting pipeline — replay to normalized observations to set inference.
+{
+  const check = (label, ok) => {
+    console.log(`=== ${label} => ${ok} ===`);
+    if (!ok) failed++;
+  };
+  const sc = await client.callTool({
+    name: 'analyze_battle',
+    arguments: {
+      mode: 'scout',
+      log: [
+        '|player|p1|Alice|', '|player|p2|Bob|',
+        '|switch|p1a: Garchomp|Garchomp|100/100', '|switch|p2a: Sneasler|Sneasler, F|100/100',
+        '|turn|1',
+        '|move|p2a: Sneasler|Close Combat|p1a: Garchomp', '|-damage|p1a: Garchomp|61/100',
+        '|move|p1a: Garchomp|Rock Slide|p2a: Sneasler', '|-damage|p2a: Sneasler|77/100',
+        '|-item|p2a: Sneasler|Grassy Seed',
+        '|turn|2',
+        '|move|p2a: Sneasler|Dire Claw|p1a: Garchomp', '|-damage|p1a: Garchomp|23/100',
+        '|move|p1a: Garchomp|Rock Slide|p2a: Sneasler', '|-damage|p2a: Sneasler|54/100',
+        '|faint|p2a: Sneasler',
+        '|win|Alice',
+      ].join('\n'),
+      team: [{ species: 'Garchomp', nature: 'Jolly', evs: { atk: 252, spe: 252 }, moves: ['Earthquake', 'Dragon Claw', 'Rock Slide'] }],
+      species: 'Sneasler',
+      regulation: 'm-c',
+    },
+  });
+  check(
+    'analyze_battle scout runs the replay-to-inference pipeline',
+    !sc.isError && sc.structuredContent.observations.length >= 3 && sc.structuredContent.inference.survivingSets > 0 && sc.structuredContent.inference.candidates[0].nature === 'Adamant' && sc.structuredContent.rematch.note.includes('prepare_matchup'),
+  );
+}
+
 // P1: server-provided workflow prompts, and the same surface over the HTTP
 // entrypoint (the remote-endpoint mode) — a real client against a spawned server.
 {
@@ -505,9 +545,9 @@ if (!/- Fake Out/.test(paste)) {
   };
   const promptList = (await client.listPrompts()).prompts;
   check(
-    'six workflow prompts are discoverable',
-    promptList.length === 6 &&
-      ['team-doctor', 'matchup-prep', 'build-around', 'tournament-prep', 'learn-my-team', 'meta-report'].every((n) =>
+    'seven workflow prompts are discoverable',
+    promptList.length === 7 &&
+      ['team-doctor', 'matchup-prep', 'build-around', 'tournament-prep', 'learn-my-team', 'meta-report', 'scout-opponent'].every((n) =>
         promptList.some((p) => p.name === n),
       ),
   );

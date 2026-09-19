@@ -91,6 +91,7 @@ const speciesOf = (members) => {
 function aggregate(teams) {
   const usage = new Map();
   const pairs = new Map();
+  const sets = new Map();
   for (const team of teams) {
     const base = [...speciesOf(team.members)];
     for (const b of base) usage.set(b, (usage.get(b) ?? 0) + 1);
@@ -100,12 +101,36 @@ function aggregate(teams) {
         pairs.set(key, (pairs.get(key) ?? 0) + 1);
       }
     }
+    // Per-window set aggregation, one member per base species: the most-played
+    // item, ability, nature and moves become the "set" that window played.
+    const byBase = new Map();
+    for (const m of team.members) {
+      const s = dex.species.get(m.name);
+      if (!s.exists) continue;
+      const baseName = s.baseSpecies ?? s.name;
+      if (!byBase.has(baseName)) byBase.set(baseName, m);
+    }
+    for (const [baseName, m] of byBase) {
+      const rec = sets.get(baseName) ?? { item: new Map(), ability: new Map(), nature: new Map(), moves: new Map() };
+      rec.item.set(m.item ?? '', (rec.item.get(m.item ?? '') ?? 0) + 1);
+      rec.ability.set(m.ability ?? '', (rec.ability.get(m.ability ?? '') ?? 0) + 1);
+      rec.nature.set(m.nature ?? '', (rec.nature.get(m.nature ?? '') ?? 0) + 1);
+      for (const a of m.attacks ?? []) rec.moves.set(a, (rec.moves.get(a) ?? 0) + 1);
+      sets.set(baseName, rec);
+    }
   }
   const pct = (n) => (teams.length ? Number(((n / teams.length) * 100).toFixed(1)) : 0);
+  const topOf = (map) => (map.size ? [...map].sort((a, b) => b[1] - a[1])[0][0] : null);
   return {
     teams: teams.length,
     usage: new Map([...usage].map(([k, n]) => [k, pct(n)])),
     pairs: new Map([...pairs].map(([k, n]) => [k, pct(n)])),
+    sets: new Map([...sets].map(([k, rec]) => [k, {
+      item: topOf(rec.item),
+      ability: topOf(rec.ability),
+      nature: topOf(rec.nature),
+      moves: [...rec.moves].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([m]) => m),
+    }])),
   };
 }
 
@@ -123,19 +148,63 @@ console.log(
   `Completeness: current ${cur.teams} of ~${expected('current')} expected teamlists, previous ${prev.teams} of ~${expected('previous')} (drops and byes make counted less than listed players).`,
 );
 
+const rankOf = (usage) => {
+  const sorted = [...usage].sort((a, b) => b[1] - a[1]);
+  return new Map(sorted.map(([k], i) => [k, i + 1]));
+};
+const curRank = rankOf(cur.usage);
+const prevRank = rankOf(prev.usage);
+
 const species = [];
 for (const [name, pct] of cur.usage) {
   const before = prev.usage.get(name) ?? 0;
-  if (pct >= 3 || before >= 3) species.push({ species: name, current: pct, previous: before });
+  if (pct >= 3 || before >= 3) {
+    species.push({
+      species: name,
+      current: pct,
+      previous: before,
+      rankDelta: (prevRank.get(name) ?? 0) - (curRank.get(name) ?? 0),
+    });
+  }
 }
 species.sort((a, b) => b.current - b.previous - (a.current - a.previous));
+
+// Lift: P(A,B) / (P(A) * P(B)), so 1.0 means independent and values above 1.0
+// mean the pair appears together more than popularity alone explains.
+const liftOf = (pairPct, ua, ub) => (ua > 0 && ub > 0 ? Number((pairPct / (((ua / 100) * (ub / 100)) * 100)).toFixed(2)) : 0);
 
 const cores = [];
 for (const [core, pct] of cur.pairs) {
   const before = prev.pairs.get(core) ?? 0;
-  if (pct >= 3 || before >= 3) cores.push({ core: core.split(' + '), current: pct, previous: before });
+  if (pct >= 3 || before >= 3) {
+    const [a, b] = core.split(' + ');
+    cores.push({
+      core: [a, b],
+      current: pct,
+      previous: before,
+      liftCurrent: liftOf(pct, cur.usage.get(a) ?? 0, cur.usage.get(b) ?? 0),
+      liftPrevious: liftOf(before, prev.usage.get(a) ?? 0, prev.usage.get(b) ?? 0),
+    });
+  }
 }
 cores.sort((a, b) => b.current - b.previous - (a.current - a.previous));
+
+// Set changes: species whose most-played item, ability or nature moved between
+// the windows — "what it runs" changing, not just "how much of it" changing.
+const setChanges = [];
+for (const s of species.filter((x) => Math.abs(x.current - x.previous) >= 2).slice(0, 20)) {
+  const now = cur.sets.get(s.species);
+  const then = prev.sets.get(s.species);
+  if (!now || !then) continue;
+  const change = (a, b) => (a !== b && a != null && b != null ? { from: b, to: a } : null);
+  const entry = {
+    species: s.species,
+    item: change(now.item, then.item),
+    ability: change(now.ability, then.ability),
+    nature: change(now.nature, then.nature),
+  };
+  if (entry.item || entry.ability || entry.nature) setChanges.push(entry);
+}
 
 const out = {
   regulation,
@@ -149,6 +218,7 @@ const out = {
   },
   species: species.slice(0, 40),
   cores: cores.slice(0, 20),
+  setChanges,
 };
 
 writeFileSync(

@@ -166,7 +166,7 @@ export const LEVEL_SPECS: Record<string, LevelSpec> = {
     compact: ['regulation', 'constraints', 'recommendations'],
     evidence: ['note'],
     elements: {
-      'recommendations': ['members', 'score', 'reasons'],
+      'recommendations': ['members', 'score', 'reasons', 'roles'],
     },
   },
 };

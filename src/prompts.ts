@@ -184,6 +184,42 @@ Deliver a team guide: each member\u2019s role, the pairs and synergies between t
   );
 
   server.registerPrompt(
+    'scout-opponent',
+    {
+      title: 'Scout Opponent',
+      description: 'Scout an opponent from a battle replay: replay, observations, set inference, rematch preparation — one pipeline.',
+      argsSchema: {
+        log: z.string().optional().describe('The battle log text; omitted, the workflow asks for it.'),
+        team: z.string().optional().describe('Your team as paste text, with the sets you actually ran.'),
+        species: z.string().optional().describe('The opponent species to scout.'),
+        regulation: regulationArg,
+      },
+    },
+    async (args) => ({
+      messages: [
+        {
+          role: 'user',
+          content: {
+            type: 'text',
+            text: `Act as a competitive scout. The user has a replay of a past match and wants to prepare for the rematch against one of the opponent's Pok\u00e9mon.
+${args.log ? `Battle log:\n\n${args.log}\n` : 'Ask the user for the battle log first.'}
+${args.team ? `Their team as paste text:\n\n${args.team}\n` : 'Ask the user for their team, with the sets they actually ran — the log does not contain them.'}
+${args.species ? `Species to scout: ${args.species}` : 'Ask which opponent species to scout.'}
+
+Workflow:
+1. Run analyze_battle with mode "scout" on the log, the parsed team, and the species.
+2. Walk through what the log proved: each extracted observation, the moves seen, and the narrowing of the candidate sets.
+3. State the surviving candidates with their probability shares, and what would pin it down further (an item reveal, one more Speed relation, a resisted hit).
+4. For the rematch: run prepare_matchup with the opponent's top candidate set in mind, and say what changes between the most and second-most likely sets.
+
+Every number comes from the tools. You explain; getcompetitive proves.`,
+          },
+        },
+      ],
+    }),
+  );
+
+  server.registerPrompt(
     'meta-report',
     {
       title: 'Meta Report',

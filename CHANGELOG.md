@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **The scouting pipeline** — `analyze_battle` gains a `scout` mode: replay →
+  normalized battle observations → set inference → rematch preparation, one
+  call. It parses the log, identifies which side is yours from your supplied
+  team, and extracts what the log proves about the scouted species — Speed
+  relations against your known members, the per-hit damage it took from them
+  (the log reports cumulative HP; the pipeline converts it), and item and
+  ability reveals — then runs the shared SetInferenceEngine. The engine moved
+  into `src/inference.ts`, so hand-typed observations and replay-derived ones
+  narrow candidates with identical math. A `/scout-opponent` workflow prompt
+  wraps the pipeline.
+- **Role taxonomy and structured objectives.** `optimize_team` accepts
+  `requiredRoles` (fake_out, tailwind, trick_room, redirection, priority,
+  intimidate, pivoting, spread, anchor, cleaner — detected deterministically
+  from learnsets, abilities and base stats), `excludedSpecies`, and a
+  `playstyle` shorthand; candidates and pairs earn score for roles the team
+  still lacks, and every recommendation carries its detected roles.
+- **Association metrics.** `compare_meta` now separates rising popularity
+  from rising synergy: per-species `rankDelta`, per-core co-occurrence `lift`
+  (1.0 = independent) for both windows, and `setChanges` — species whose
+  most-played item, ability or nature moved between the windows, computed
+  from the per-window teamlists the history generator already fetches.
+
 ## [6.0.0] - 2026-09-19
 
 ### Changed
