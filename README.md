@@ -17,8 +17,8 @@ Smogon-tier and archetype surface that used to sit alongside it is gone.
 
 ## What it provides
 
-- **30 tools** across six domains: data, team analysis, team workflows (paste in, diagnose, prepare matchups, learn from replays, scout sets, fill slots), meta (usage-derived), battle mechanics, and official regulation sets
-- **Six workflow prompts** — `/team-doctor`, `/matchup-prep`, `/build-around`, `/tournament-prep`, `/learn-my-team`, `/meta-report` — server-provided templates that chain the deterministic tools, so compound workflows stay discoverable without a 40-tool surface
+- **8 compound tools**: `lookup`, `calculate`, `analyze_team`, `optimize_team`, `prepare_matchup`, `analyze_battle`, `analyze_meta`, `team_io` — intent-level entrypoints that dispatch on a `mode`, so the model picks an intent and the server does the orchestration
+- **Six workflow prompts** — `/team-doctor`, `/matchup-prep`, `/build-around`, `/tournament-prep`, `/learn-my-team`, `/meta-report` — server-provided templates that chain the eight tools, so compound workflows stay discoverable without widening the surface
 - **Structured, agent-first definitions** — every tool declares MCP annotations and an output schema, returns `structuredContent` alongside JSON text, and documents all of its parameters; the deterministic half of the [TDQS](https://tdqs.dev) checklist is linted in CI
 - Full **Pokémon Showdown** dataset — species, alternate forms, stats, moves, items, abilities, natures, learnsets, types
 - **Battle math** from Smogon's calculator — stat calculation and full damage calculation (weather, terrain, boosts, items)
@@ -30,59 +30,18 @@ Built on [`@pkmn/dex`](https://github.com/pkmn/EPOKe) (Showdown data) and
 
 ## Tools
 
-### Data
-| Tool | Purpose |
-| --- | --- |
-| `get_pokemon` | Types, base stats, BST, abilities, forms, weight, gender, evolutions |
-| `list_forms` | All forms of a species (alternate, cosmetic, battle-only) |
-| `get_sprites` | Sprite URLs for a whole team in one call (artwork or icon), from a committed PokéAPI id table — URLs only, the server does no network I/O |
-| `search_dex` | Fuzzy name search across species / moves / items / abilities / natures |
-| `get_move` | Type, category, power, accuracy, PP, priority, target, secondary effects |
-| `get_item` | Effect, flags, mega stone, Z-move, Fling, boosts |
-| `get_ability` | Effect description, flags |
-| `get_nature` | Boosts / lowers which stat |
-| `get_learnset` | All learnable moves grouped by method (level-up, TM, egg, tutor, event) |
-| `get_type` | Defensive weaknesses, resistances, immunities |
-| `get_type_matchup` | Matchup multiplier, offensive coverage, or defensive chart (defender can be a species) |
+Eight compound tools; each dispatches on a `mode` field where the name alone is ambiguous.
 
-### Team analysis
-| Tool | Purpose |
-| --- | --- |
-| `analyze_team` | Team synergy: stacked defensive weaknesses, offensive coverage gaps, speed placement, a heuristic score, and — with a regulation — coverage against the meta's real sets, with battle-math `answerClass` verdicts from the shared MatchupEvaluator |
-
-### Team workflows
-| Tool | Purpose |
-| --- | --- |
-| `parse_team` | Turn a Showdown/Pokepaste block (or a `species @ item \| ability \| nature \| EVs \| moves` one-liner) into the canonical team every tool takes; unknown names become warnings, not errors |
-| `format_team` | Render a canonical team back into paste text, round-tripping through `parse_team` |
-| `diagnose_team` | "Fix my team": weaknesses with evidence — battle-math matchup verdicts included when sets are known — then concrete spread, move, item and member changes, each backed by exact math or usage data |
-| `prepare_matchup` | "Prepare me": their likely sets by usage, speed races with margins, key damage rolls, an exhaustively scored bring-four with alternates, scored lead pairings, and win/loss conditions |
-| `analyze_replay` | Post-match read of a battle log: teams, KOs with causes, observed Speed order, damage percentages, and a type-coverage read |
-| `infer_set` | Reverse constraint solving: battle observations (who moved first, damage dealt/taken) narrow the opponent's likely set, ranked against the meta |
-| `optimize_team` | Fill open team slots against constraints — cover these types, answer these threats — with reasons for every recommendation |
-
-### Meta (usage-derived)
-| Tool | Purpose |
-| --- | --- |
-| `list_threats` | Most-used Pokemon of a regulation, ranked by measured usage (role, tier, usage share) with the sample and sources behind it |
-| `compare_meta` | What is changing: last 7 days of usage vs the 7 before, per species and per two-species core, from a committed build-time aggregation |
-| `get_set` | Most-played set for one or several species (item, ability, nature, EVs, 4 moves), with the Mega form and ability where relevant; covers each regulation's ranked species, which `list_threats` lists |
-
-### Regulations (Pokémon Champions / VGC)
-| Tool | Purpose |
-| --- | --- |
-| `list_regulations` | Official Regulation Sets with dates, status, roster size, and how many species have usage-derived sets |
-| `get_regulation` | Full set rules: battle rules, clauses, Mega rules, and roster sizes; the name rosters come back with `includeRoster` |
-| `check_legality` | Validate a team against a set: illegal species, Species/Item Clause, illegal moves, team size, Mega eligibility |
-
-### Battle mechanics
-| Tool | Purpose |
-| --- | --- |
-| `calculate_stats` | Final 6 stats at a level with EVs/IVs/nature (in-game formula) |
-| `calculate_damage` | Full damage calc (sets, item, ability, boosts, weather, terrain, hazards) |
-| `calculate_matchups` | Batch damage: one attacker vs many defenders — best move, damage range, KO chance, who moves first |
-| `check_speed` | Final Speed (nature/EV/IV/boost/Scarf) vs a regulation roster's invested/uninvested speeds |
-| `optimize_evs` | EV spread solver: min EVs to survive / outspeed / guarantee a KO, then maximize a stat |
+| Tool | Purpose | Modes |
+| --- | --- | --- |
+| `lookup` | One data lookup | species, forms, search, move, item, ability, nature, learnset, type, matchup, sprites |
+| `calculate` | One battle calc | stats, damage, matchups, speed, optimize_evs |
+| `analyze_team` | Team analysis | synergy, diagnose |
+| `optimize_team` | Fill open team slots against constraints | — |
+| `prepare_matchup` | Pre-game dossier: likely sets, speed races, damage rolls, exhaustive bring-four with alternates, scored leads, win/loss conditions | — |
+| `analyze_battle` | Post-game and scouting | replay, infer |
+| `analyze_meta` | The meta, measured | threats, compare, set |
+| `team_io` | Team import/export and validation | parse, format, legality, regulation, regulations |
 
 ## Install
 
@@ -179,14 +138,14 @@ npm test   # builds and drives every tool over real MCP stdio, plus the HTTP ent
 
 ## Example queries
 
-- `get_pokemon` `{ "species": "Ogerpon-Wellspring" }`
-- `get_type_matchup` `{ "attacker": "Ice", "defender": "Garchomp" }` → 4x super effective
-- `calculate_stats` `{ "species": "Garchomp", "level": 50, "nature": "Jolly", "evs": { "atk": 252, "spe": 252 } }`
-- `calculate_damage` `{ "attacker": { "species": "Garchomp", "level": 50, "nature": "Jolly", "evs": { "atk": 252, "spe": 252 }, "item": "Choice Band" }, "defender": { "species": "Corviknight", "level": 50, "nature": "Impish", "evs": { "hp": 252, "def": 252 } }, "move": "Dragon Claw" }`
-- `check_legality` `{ "regulation": "m-c", "team": [ { "species": "Garchomp", "item": "Choice Band" } ] }`
-- `analyze_team` `{ "team": [ { "species": "Garchomp", "moves": ["Earthquake", "Dragon Claw", "Rock Slide"] } ], "regulation": "m-c" }`
-- `parse_team` `{ "text": "Garchomp @ Choice Scarf | Rough Skin | Jolly | 252 Atk / 252 Spe | Earthquake / Dragon Claw" }`
-- `diagnose_team` `{ "team": [ { "species": "Garchomp", "nature": "Jolly", "evs": { "atk": 252, "spe": 252 } } ], "goal": "improve against the current meta" }`
+- `lookup` `{ "mode": "species", "species": "Ogerpon-Wellspring" }`
+- `lookup` `{ "mode": "matchup", "attacker": "Ice", "defender": "Garchomp" }` → 4x super effective
+- `calculate` `{ "mode": "stats", "species": "Garchomp", "level": 50, "nature": "Jolly", "evs": { "atk": 252, "spe": 252 } }`
+- `calculate` `{ "mode": "damage", "attacker": { "species": "Garchomp", "level": 50, "nature": "Jolly", "evs": { "atk": 252, "spe": 252 }, "item": "Choice Band" }, "defender": { "species": "Corviknight", "level": 50, "nature": "Impish", "evs": { "hp": 252, "def": 252 } }, "move": "Dragon Claw" }`
+- `team_io` `{ "mode": "legality", "regulation": "m-c", "team": [ { "species": "Garchomp", "item": "Choice Band" } ] }`
+- `analyze_team` `{ "mode": "synergy", "team": [ { "species": "Garchomp", "moves": ["Earthquake", "Dragon Claw", "Rock Slide"] } ], "regulation": "m-c" }`
+- `team_io` `{ "mode": "parse", "text": "Garchomp @ Choice Scarf | Rough Skin | Jolly | 252 Atk / 252 Spe | Earthquake / Dragon Claw" }`
+- `analyze_team` `{ "mode": "diagnose", "team": [ { "species": "Garchomp", "nature": "Jolly", "evs": { "atk": 252, "spe": 252 } } ], "goal": "improve against the current meta" }`
 - `prepare_matchup` `{ "team": [ { "species": "Garchomp" } ], "opponent": ["Sneasler", "Salamence-Mega", "Gholdengo"] }`
 
 ## Data freshness
