@@ -17,7 +17,7 @@ Smogon-tier and archetype surface that used to sit alongside it is gone.
 
 ## What it provides
 
-- **26 tools** across six domains: data, team analysis, team workflows (paste in, diagnose, prepare matchups), meta (usage-derived), battle mechanics, and official regulation sets
+- **28 tools** across six domains: data, team analysis, team workflows (paste in, diagnose, prepare matchups, learn from replays), meta (usage-derived), battle mechanics, and official regulation sets
 - **Six workflow prompts** — `/team-doctor`, `/matchup-prep`, `/build-around`, `/tournament-prep`, `/learn-my-team`, `/meta-report` — server-provided templates that chain the deterministic tools, so compound workflows stay discoverable without a 40-tool surface
 - **Structured, agent-first definitions** — every tool declares MCP annotations and an output schema, returns `structuredContent` alongside JSON text, and documents all of its parameters; the deterministic half of the [TDQS](https://tdqs.dev) checklist is linted in CI
 - Full **Pokémon Showdown** dataset — species, alternate forms, stats, moves, items, abilities, natures, learnsets, types
@@ -57,11 +57,13 @@ Built on [`@pkmn/dex`](https://github.com/pkmn/EPOKe) (Showdown data) and
 | `format_team` | Render a canonical team back into paste text, round-tripping through `parse_team` |
 | `diagnose_team` | "Fix my team": weaknesses with evidence, then concrete spread, move, item and member changes, each backed by exact math or usage data |
 | `prepare_matchup` | "Prepare me": their likely sets by usage, speed races with margins, key damage rolls, bring-four, leads, and win/loss conditions |
+| `analyze_replay` | Post-match read of a battle log: teams, KOs with causes, observed Speed order, damage percentages, and a type-coverage read |
 
 ### Meta (usage-derived)
 | Tool | Purpose |
 | --- | --- |
 | `list_threats` | Most-used Pokemon of a regulation, ranked by measured usage (role, tier, usage share) with the sample and sources behind it |
+| `compare_meta` | What is changing: last 7 days of usage vs the 7 before, per species and per two-species core, from a committed build-time aggregation |
 | `get_set` | Most-played set for one or several species (item, ability, nature, EVs, 4 moves), with the Mega form and ability where relevant; covers each regulation's ranked species, which `list_threats` lists |
 
 ### Regulations (Pokémon Champions / VGC)
@@ -189,9 +191,11 @@ npm test   # builds and drives every tool over real MCP stdio, plus the HTTP ent
 
 The Showdown dataset and battle math track `@pkmn/dex` / `@smogon/calc`. Official
 **Regulation Sets change seasonally**; the legal rosters are regenerated with
-`node scripts/extract-regs.mjs`, and the **threat list / standard sets**
-(`src/threats.ts`) are generated from live usage by
-`node scripts/build-threats.mjs <regulation>`. Both generated data files are
+`node scripts/extract-regs.mjs`, the **threat list / standard sets**
+(`src/threats.ts`) with `node scripts/build-threats.mjs <regulation>`, and the
+**two-window usage history** behind `compare_meta` with
+`node scripts/build-meta-history.mjs <regulation>` (it refuses to write unless
+every tournament in the window was fetched). All generated data files are
 committed, so the tools stay offline at runtime. See [CONTRIBUTING](CONTRIBUTING.md).
 
 ## Contributing

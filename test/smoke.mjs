@@ -165,6 +165,10 @@ const calls = [
   }],
   ['get_sprites', { species: ['Garchomp', 'Rotom-Wash', 'Indeedee', 'Salamence-Mega', 'NotAMon', 'Annihilape'] }],
   ['get_sprites', { species: ['Garchomp', 'Basculegion'], size: 'icon' }],
+  ['compare_meta', {}],
+  ['analyze_replay', {
+    log: '|player|p1|Alice|\n|player|p2|Bob|\n|teamsize|p1|2|p2|2\n|switch|p1a: Sneasler|Sneasler, F|100/100\n|switch|p2a: Rillaboom|Rillaboom|100/100\n|turn|1\n|move|p1a: Sneasler|Close Combat|p2a: Rillaboom\n|-damage|p2a: Rillaboom|71/100\n|move|p2a: Rillaboom|Grassy Glide|p1a: Sneasler\n|-damage|p1a: Sneasler|45/100\n|turn|2\n|move|p1a: Sneasler|Dire Claw|p2a: Rillaboom\n|-damage|p2a: Rillaboom|8/100\n|faint|p2a: Rillaboom\n|switch|p2a: Gholdengo|Gholdengo|100/100\n|turn|3\n|move|p2a: Gholdengo|Make It Rain|p1a: Sneasler\n|-damage|p1a: Sneasler|0/100\n|faint|p1a: Sneasler\n|win|Bob',
+  }],
   ['analyze_team', {
     team: [
       { species: 'Garchomp', moves: ['Earthquake'] },
@@ -302,6 +306,44 @@ if (!/- Fake Out/.test(paste)) {
   failed++;
 }
 
+// P2: meta deltas and replay analysis are deterministic reads over committed data.
+{
+  const check = (label, ok) => {
+    console.log(`=== ${label} => ${ok} ===`);
+    if (!ok) failed++;
+  };
+  const cm = await client.callTool({ name: 'compare_meta', arguments: {} });
+  const md = cm.structuredContent;
+  check(
+    'compare_meta reports two windows with team counts',
+    !cm.isError && md.windows.current.teams > 0 && md.windows.previous.teams > 0 && md.rising.length > 0 && md.falling.length > 0,
+  );
+  check(
+    'compare_meta deltas are consistent',
+    md.rising.every((s) => Number((s.current - s.previous).toFixed(1)) === s.delta) &&
+      md.emergingCores.every((c) => c.core.length === 2 && c.delta >= 0),
+  );
+  const cmErr = await client.callTool({ name: 'compare_meta', arguments: { regulation: 'm-a' } });
+  check('compare_meta names the regulations with history', !!cmErr.isError && cmErr.content[0].text.includes('m-c'));
+
+  const rp = await client.callTool({
+    name: 'analyze_replay',
+    arguments: {
+      log: '|player|p1|Alice|\n|player|p2|Bob|\n|switch|p1a: Sneasler|Sneasler|100/100\n|switch|p2a: Rillaboom|Rillaboom|100/100\n|turn|1\n|move|p1a: Sneasler|Close Combat|p2a: Rillaboom\n|-damage|p2a: Rillaboom|71/100\n|move|p2a: Rillaboom|Grassy Glide|p1a: Sneasler\n|-damage|p1a: Sneasler|45/100\n|faint|p2a: Rillaboom\n|win|Alice',
+    },
+  });
+  const r = rp.structuredContent;
+  check(
+    'analyze_replay parses teams, KO and winner',
+    !rp.isError && r.players.join(',') === 'Alice,Bob' && r.winner === 'Alice' && r.turns === 1 && r.kos.length === 1 && r.kos[0].move === 'Close Combat' && r.teams.p2.includes('Rillaboom'),
+  );
+  check('analyze_replay reads speed and damage from the log', r.speedConstraints.length === 1 && r.speedConstraints[0].faster.includes('Sneasler') && r.damageEvents[0].percent === 71);
+  const dx = await client.callTool({ name: 'diagnose_team', arguments: { team: [{ species: 'Garchomp' }] } });
+  check(
+    'diagnose_team changes carry dataUpdated provenance',
+    dx.structuredContent.candidateChanges.every((c) => typeof c.dataUpdated === 'string'),
+  );
+}
 // P1: server-provided workflow prompts, and the same surface over the HTTP
 // entrypoint (the remote-endpoint mode) — a real client against a spawned server.
 {
@@ -348,7 +390,7 @@ if (!/- Fake Out/.test(paste)) {
     await httpClient.connect(new StreamableHTTPClientTransport(new URL('http://127.0.0.1:3207/mcp')));
     const httpTools = (await httpClient.listTools()).tools;
     const sprite = await httpClient.callTool({ name: 'get_sprites', arguments: { species: ['Garchomp'], size: 'icon' } });
-    check('HTTP entrypoint serves the same 26 tools', httpTools.length === 26);
+    check('HTTP entrypoint serves the same 28 tools', httpTools.length === 28);
     check('HTTP entrypoint answers a tool call', sprite.structuredContent.sprites[0].url.endsWith('445.png'));
     await httpClient.close();
   } finally {

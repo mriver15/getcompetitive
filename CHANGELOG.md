@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`compare_meta`** — "what is becoming popular?": per-species usage in the
+  last 7 days against the 7 before, plus the species pairs gaining the most
+  co-occurrence. The comparison is computed by the new
+  `scripts/build-meta-history.mjs`, which aggregates full teamlists from the
+  same tournament source as the threat list, buckets them into the two rolling
+  windows, and refuses to write unless every tournament in the window was
+  fetched — so the server stays a pure offline read and a partial fetch cannot
+  ship silently. First cut: 2,091 teams vs 1,292, with Gholdengo +11.9 points,
+  Raichu +8.4, and the Gholdengo+Rillaboom core nearly doubling.
+- **`analyze_replay`** — a Showdown-format battle log in, a deterministic
+  post-match read out: both teams, every KO with the move that caused it, the
+  Speed order observed turn by turn (caveated), damage percentages per hit, and
+  a type-coverage read of the matchup. Pure text parsing over the bundled
+  dataset — replay URLs are fetched and pasted client-side.
+- **Provenance on recommendations** — every `diagnose_team` candidate change
+  now carries `dataUpdated`, the threat list's `sourceAsOf`, alongside its
+  evidence and confidence, so a recommendation ages visibly instead of
+  silently.
+
 ## [4.3.0] - 2026-09-18
 
 ### Added

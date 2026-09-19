@@ -6,6 +6,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { THREAT_LISTS, getThreatList, findThreat, type Threat } from '../threats.js';
 import { STATS, evsToChampionsPoints } from '../dex.js';
 import { ok, wrap, READ_ONLY_ANNOTATIONS } from '../result.js';
+import rawHistory from '../meta-history.data.js';
 
 /** Showdown's stat labels, used when writing a paste. */
 const STAT_LABEL: Record<string, string> = { hp: 'HP', atk: 'Atk', def: 'Def', spa: 'SpA', spd: 'SpD', spe: 'Spe' };
@@ -303,6 +304,123 @@ export function registerMetaTools(server: McpServer) {
 
       if (Array.isArray(args.species)) return ok({ sets: args.species.map(lookup) });
       return ok(lookup(args.species));
+    }),
+  );
+
+  interface MetaHistoryEntry {
+    species: string;
+    current: number;
+    previous: number;
+  }
+  interface MetaCoreEntry {
+    core: string[];
+    current: number;
+    previous: number;
+  }
+  const META_HISTORY = rawHistory as unknown as Record<
+    string,
+    {
+      regulation: string;
+      name: string;
+      source: string;
+      sourceAsOf: string;
+      note: string;
+      windows: {
+        current: { start: string; end: string; teams: number };
+        previous: { start: string; end: string; teams: number };
+      };
+      species: MetaHistoryEntry[];
+      cores: MetaCoreEntry[];
+    }
+  >;
+
+  server.registerTool(
+    'compare_meta',
+    {
+      title: 'Compare meta windows',
+      description:
+        'Report how the meta is moving: per-species usage in the last 7 days against the 7 before it, measured from the same tournament source as `list_threats`, plus the species pairs gaining the most ground ("emerging cores"). `rising` and `falling` carry each species\u2019 previous and current usage share and its delta; `emergingCores` does the same for the most common two-species pairings, so co-occurrence is measured, not asserted. The comparison is a committed build-time aggregation (scripts/build-meta-history.mjs) — the server stays a pure offline read, and the windows are rolling: regenerate to slide them forward. Use it to answer "what is becoming popular?", where `list_threats` answers "what is popular?"; pair it with `get_set` on the risers to see what they run. Read-only and offline.',
+      annotations: READ_ONLY_ANNOTATIONS,
+      inputSchema: {
+        regulation: z
+          .string()
+          .optional()
+          .describe('Regulation id, e.g. "m-c" (case- and punctuation-insensitive); omitted, the single regulation with history is used.'),
+      },
+      outputSchema: {
+        regulation: z.string().describe('Display name of the regulation the comparison covers.'),
+        sourceAsOf: z.string().describe('ISO date the comparison was built.'),
+        windows: z
+          .object({
+            current: z.object({
+              start: z.string().describe('First day of the current 7-day window, ISO 8601.'),
+              end: z.string().describe('Last day of the current window, ISO 8601.'),
+              teams: z.number().describe('Team lists counted in the current window.'),
+            }),
+            previous: z.object({
+              start: z.string().describe('First day of the previous 7-day window, ISO 8601.'),
+              end: z.string().describe('Last day of the previous window, ISO 8601.'),
+              teams: z.number().describe('Team lists counted in the previous window.'),
+            }),
+          })
+          .describe('The two windows being compared.'),
+        rising: z
+          .array(
+            z.object({
+              species: z.string().describe('Base species name.'),
+              previous: z.number().describe('Usage share in the previous window, in percent.'),
+              current: z.number().describe('Usage share in the current window, in percent.'),
+              delta: z.number().describe('`current` minus `previous`, in percentage points.'),
+            }),
+          )
+          .describe('The biggest gainers, largest delta first.'),
+        falling: z
+          .array(
+            z.object({
+              species: z.string().describe('Base species name.'),
+              previous: z.number().describe('Usage share in the previous window, in percent.'),
+              current: z.number().describe('Usage share in the current window, in percent.'),
+              delta: z.number().describe('`current` minus `previous`, in percentage points.'),
+            }),
+          )
+          .describe('The biggest losers, most negative delta first.'),
+        emergingCores: z
+          .array(
+            z.object({
+              core: z.array(z.string()).describe('The two base species, sorted alphabetically.'),
+              previous: z.number().describe('Share of previous-window teams carrying both, in percent.'),
+              current: z.number().describe('Share of current-window teams carrying both, in percent.'),
+              delta: z.number().describe('`current` minus `previous`, in percentage points.'),
+            }),
+          )
+          .describe('The species pairs gaining the most co-occurrence, largest delta first.'),
+        note: z.string().describe('How the numbers were computed: team counts, tournament source, and that the windows are rolling.'),
+      },
+    },
+    wrap(async (args: { regulation?: string }) => {
+      const q = (args.regulation ?? 'm-c').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const entry = Object.values(META_HISTORY).find((h) => h.regulation.toLowerCase().replace(/[^a-z0-9]/g, '') === q);
+      if (!entry) {
+        throw new Error(
+          `No usage history for "${args.regulation ?? 'm-c'}". Available: ${Object.values(META_HISTORY).map((h) => `${h.name} (${h.regulation})`).join(', ')}.`,
+        );
+      }
+      const deltaOf = (e: { current: number; previous: number }) => Number((e.current - e.previous).toFixed(1));
+      const row = (e: MetaHistoryEntry) => ({ species: e.species, previous: e.previous, current: e.current, delta: deltaOf(e) });
+      const coreRow = (e: MetaCoreEntry) => ({ core: e.core, previous: e.previous, current: e.current, delta: deltaOf(e) });
+      return ok({
+        regulation: entry.name,
+        sourceAsOf: entry.sourceAsOf,
+        windows: entry.windows,
+        rising: entry.species.filter((s) => deltaOf(s) > 0).slice(0, 12).map(row),
+        falling: entry.species
+          .filter((s) => deltaOf(s) < 0)
+          .sort((a, b) => deltaOf(a) - deltaOf(b))
+          .slice(0, 12)
+          .map(row),
+        emergingCores: entry.cores.filter((c) => deltaOf(c) > 0).slice(0, 8).map(coreRow),
+        note: entry.note,
+      });
     }),
   );
 }

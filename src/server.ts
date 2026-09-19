@@ -14,6 +14,7 @@ import { registerTeamTools } from './tools/team.js';
 import { registerDoctorTool } from './tools/doctor.js';
 import { registerMatchupTool } from './tools/matchup.js';
 import { registerSpritesTool } from './tools/sprites.js';
+import { registerReplayTool } from './tools/replay.js';
 import { registerPrompts } from './prompts.js';
 
 export const VERSION = (
@@ -35,6 +36,7 @@ export function buildServer(): McpServer {
   registerDoctorTool(server);
   registerMatchupTool(server);
   registerSpritesTool(server);
+  registerReplayTool(server);
   registerPrompts(server);
 
   return server;

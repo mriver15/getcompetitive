@@ -23,6 +23,10 @@ const changeSchema = z.object({
   change: z.string().describe('The concrete change to make.'),
   evidence: z.string().describe('Why: exact stats, learnset facts, or the meta\u2019s usage data.'),
   confidence: z.enum(['high', 'medium', 'low']).describe('How sure the evidence makes this: high is exact math, low is a typing-only heuristic.'),
+  dataUpdated: z
+    .string()
+    .optional()
+    .describe('ISO date of the newest data point behind the evidence — the threat list\u2019s sourceAsOf, carried so a recommendation ages visibly.'),
 });
 
 export function registerDoctorTool(server: McpServer) {
@@ -251,7 +255,7 @@ export function registerDoctorTool(server: McpServer) {
         regulation: set.name,
         ...(args.goal ? { goal: args.goal } : {}),
         problems: problems.slice(0, 8),
-        candidateChanges: changes,
+        candidateChanges: changes.map((c) => ({ ...c, dataUpdated: list.sourceAsOf })),
         ...(unknownMoves.length ? { unknownMoves: [...new Set(unknownMoves)] } : {}),
         note: 'Problems and changes come from exact stats, usage and learnsets — not simulated battles. `spread` and `move` changes are exact math or learnset facts; `item` changes follow the meta\u2019s most-played item; `member` swaps are typing-only heuristics, because usage data exists only for the ranked species, so weigh them accordingly. The goal string is carried verbatim and does not change the analysis.',
       });
