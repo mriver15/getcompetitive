@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.2.2] - 2026-09-19
+
+### Changed
+
+- **The release guard has its first recorded catch.** 6.2.1 tagged before its
+  changelog heading was promoted, and the new workflow step refused to create
+  a GitHub release for it (npm had already published); the heading was
+  promoted and the release created with the same command the workflow runs.
+  This release exercises the full loop end to end.
+
 ## [6.2.1] - 2026-09-19
 
 ### Changed
