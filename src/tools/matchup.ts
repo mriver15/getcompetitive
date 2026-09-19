@@ -7,7 +7,8 @@
  */
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { getDex, typeEffectiveness, TYPES18, finalStat, damageResult, learnableMoveIds } from '../dex.js';
+import { typeEffectiveness, TYPES18, finalStat, damageResult, learnableMoveIds } from '../dex.js';
+import { getChampionsDex } from '../champions.js';
 import { REGULATION_SETS, getRegulationSet, setStatus } from '../regulations.js';
 import { getThreatList, findThreat, type Threat } from '../threats.js';
 import { ok, wrap, requireExists, READ_ONLY_ANNOTATIONS } from '../result.js';
@@ -177,7 +178,7 @@ export function registerMatchupTool(server: McpServer) {
       },
     },
     wrap(async (args: { team: ParsedSet[]; opponent: (string | ParsedSet)[]; regulation?: string }) => {
-      const dex = getDex(9);
+      const dex = getChampionsDex();
       const regulationId = args.regulation ?? (REGULATION_SETS.find((s) => setStatus(s) === 'current')?.id ?? 'm-c');
       const set = getRegulationSet(regulationId);
       if (!set) {

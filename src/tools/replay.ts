@@ -9,7 +9,8 @@
  */
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { getDex, typeEffectiveness, TYPES18 } from '../dex.js';
+import { typeEffectiveness, TYPES18 } from '../dex.js';
+import { getChampionsDex } from '../champions.js';
 import { ok, wrap, READ_ONLY_ANNOTATIONS } from '../result.js';
 
 interface ParsedReplay {
@@ -25,7 +26,7 @@ interface ParsedReplay {
 }
 
 function parseReplay(log: string): ParsedReplay {
-  const dex = getDex(9);
+  const dex = getChampionsDex();
   const players: Record<string, string> = {};
   const species: Record<string, string> = {};
   const seen = { p1: new Set<string>(), p2: new Set<string>() };
@@ -207,7 +208,7 @@ export function registerReplayTool(server: McpServer) {
     },
     wrap(async (args: { log: string }) => {
       const parsed = parseReplay(args.log);
-      const dex = getDex(9);
+      const dex = getChampionsDex();
 
       // Type read: per side, the types nothing hits super-effectively, from
       // STAB types and the types of moves the log showed.

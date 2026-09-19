@@ -10,7 +10,8 @@
  */
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { getDex, finalStat, damageResult } from '../dex.js';
+import { finalStat, damageResult } from '../dex.js';
+import { getChampionsDex } from '../champions.js';
 import { getRegulationSet } from '../regulations.js';
 import { findThreat, type Threat, type ThreatList } from '../threats.js';
 import { ok, wrap, requireExists, READ_ONLY_ANNOTATIONS } from '../result.js';
@@ -178,7 +179,7 @@ export function registerInferTool(server: McpServer) {
       },
     },
     wrap(async (args: { species: string; observations: z.infer<typeof observationSchema>[]; regulation?: string }) => {
-      const dex = getDex(9);
+      const dex = getChampionsDex();
       const set = args.regulation ? getRegulationSet(args.regulation) : undefined;
       const curated = findThreat(args.species, set?.id);
       const sp = dex.species.get(args.species);

@@ -14,7 +14,8 @@
  */
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { getDex, NATURES, finalStat, resolveEvs } from '../dex.js';
+import { NATURES, finalStat, resolveEvs } from '../dex.js';
+import { getChampionsDex } from '../champions.js';
 import { getRegulationSet } from '../regulations.js';
 import { ok, wrap, requireExists, READ_ONLY_ANNOTATIONS } from '../result.js';
 
@@ -91,7 +92,7 @@ function parseBlock(block: string, warnings: string[]): ParsedSet | null {
   const speciesToken = speciesRaw.trim().replace(/\s*\([MF]\)$/, '');
   const set: ParsedSet = { species: speciesToken };
 
-  const dex = getDex(9);
+  const dex = getChampionsDex();
   const sp = dex.species.get(speciesToken);
   if (sp.exists) set.species = sp.name;
   else warnings.push(`unknown species "${speciesToken}"`);
@@ -170,7 +171,7 @@ function parseInline(line: string, warnings: string[]): ParsedSet | null {
   const speciesToken = speciesRaw.trim().replace(/\s*\([MF]\)$/, '');
   const set: ParsedSet = { species: speciesToken };
 
-  const dex = getDex(9);
+  const dex = getChampionsDex();
   const sp = dex.species.get(speciesToken);
   if (sp.exists) set.species = sp.name;
   else warnings.push(`unknown species "${speciesToken}"`);
@@ -255,7 +256,7 @@ export function parseTeamText(text: string, regulation?: string): { team: Parsed
     const reg = getRegulationSet(regulation);
     if (!reg) warnings.push(`unknown regulation "${regulation}" — no legality check was run.`);
     else {
-      const dex = getDex(9);
+      const dex = getChampionsDex();
       const eligible = new Set(reg.eligibleSpecies.map((s) => s.toLowerCase().replace(/[^a-z0-9]/g, '')));
       team.forEach((s) => {
         const sp = dex.species.get(s.species);
@@ -335,7 +336,7 @@ export interface ResolvedMember {
  * species, items and natures throw; unknown moves are collected, not fatal.
  */
 export function resolveMembers(entries: ParsedSet[]): { members: ResolvedMember[]; unknownMoves: string[] } {
-  const dex = getDex(9);
+  const dex = getChampionsDex();
   const members: ResolvedMember[] = [];
   const unknownMoves: string[] = [];
 

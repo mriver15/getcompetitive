@@ -6,7 +6,8 @@
  */
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { getDex, typeEffectiveness, TYPES18, finalStat, learnableMoveIds, resolveEvs } from '../dex.js';
+import { typeEffectiveness, TYPES18, finalStat, learnableMoveIds, resolveEvs } from '../dex.js';
+import { getChampionsDex } from '../champions.js';
 import { REGULATION_SETS, getRegulationSet, setStatus } from '../regulations.js';
 import { THREAT_LISTS, getThreatList, findThreat } from '../threats.js';
 import { ok, wrap, READ_ONLY_ANNOTATIONS } from '../result.js';
@@ -73,7 +74,7 @@ export function registerDoctorTool(server: McpServer) {
       },
     },
     wrap(async (args: { team: ParsedSet[]; regulation?: string; lockedMembers?: string[]; goal?: string }) => {
-      const dex = getDex(9);
+      const dex = getChampionsDex();
       const regulationId = args.regulation ?? (REGULATION_SETS.find((s) => setStatus(s) === 'current')?.id ?? 'm-c');
       const set = getRegulationSet(regulationId);
       if (!set) {

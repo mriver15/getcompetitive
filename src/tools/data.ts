@@ -6,7 +6,6 @@ import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { ModdedDex } from '@pkmn/dex';
 import {
-  getDex,
   toID,
   speciesToObj,
   moveToObj,
@@ -18,6 +17,7 @@ import {
   typeEffectiveness,
   TYPES18,
 } from '../dex.js';
+import { getChampionsDex } from '../champions.js';
 import { ok, wrap, requireExists, READ_ONLY_ANNOTATIONS } from '../result.js';
 
 /**
@@ -214,8 +214,7 @@ export function registerDataTools(server: McpServer) {
       },
     },
     wrap(async (args: { species: string }) => {
-      const gen = 9;
-      const s = requireSpecies(getDex(gen), args.species);
+      const s = requireSpecies(getChampionsDex(), args.species);
       return ok(speciesToObj(s));
     }),
   );
@@ -268,8 +267,7 @@ export function registerDataTools(server: McpServer) {
       },
     },
     wrap(async (args: { species: string }) => {
-      const gen = 9;
-      const dex = getDex(gen);
+      const dex = getChampionsDex();
       const base = requireSpecies(dex, args.species);
       const names = new Set<string>([base.name]);
       for (const f of [...(base.otherFormes ?? []), ...(base.cosmeticFormes ?? []), ...(base.formeOrder ?? [])]) {
@@ -343,7 +341,7 @@ export function registerDataTools(server: McpServer) {
     wrap(
       async (args: { query: string; kind: 'species' | 'move' | 'item' | 'ability' | 'nature'; limit: number }) => {
         const gen = 9;
-        const dex = getDex(gen);
+        const dex = getChampionsDex();
         const q = args.query.toLowerCase().trim();
         if (!q) throw new Error('query must be non-empty.');
 
@@ -460,8 +458,7 @@ export function registerDataTools(server: McpServer) {
       },
     },
     wrap(async (args: { move: string }) => {
-      const gen = 9;
-      const dex = getDex(gen);
+      const dex = getChampionsDex();
       const m = dex.moves.get(args.move);
       const suggestions = m.exists ? [] : fuzzyMatches(dex.moves.all().map((x) => x.id), dex.moves.all().map((x) => x.name), args.move);
       return ok(moveToObj(requireExists(m, 'move', args.move, suggestions)));
@@ -529,8 +526,7 @@ export function registerDataTools(server: McpServer) {
       },
     },
     wrap(async (args: { item: string }) => {
-      const gen = 9;
-      const dex = getDex(gen);
+      const dex = getChampionsDex();
       const i = dex.items.get(args.item);
       const suggestions = i.exists ? [] : fuzzyMatches(dex.items.all().map((x) => x.id), dex.items.all().map((x) => x.name), args.item);
       return ok(itemToObj(requireExists(i, 'item', args.item, suggestions)));
@@ -561,8 +557,7 @@ export function registerDataTools(server: McpServer) {
       },
     },
     wrap(async (args: { ability: string }) => {
-      const gen = 9;
-      const dex = getDex(gen);
+      const dex = getChampionsDex();
       const a = dex.abilities.get(args.ability);
       const suggestions = a.exists ? [] : fuzzyMatches(dex.abilities.all().map((x) => x.id), dex.abilities.all().map((x) => x.name), args.ability);
       return ok(abilityToObj(requireExists(a, 'ability', args.ability, suggestions)));
@@ -593,8 +588,7 @@ export function registerDataTools(server: McpServer) {
       },
     },
     wrap(async (args: { nature: string }) => {
-      const gen = 9;
-      const dex = getDex(gen);
+      const dex = getChampionsDex();
       const n = dex.natures.get(args.nature);
       return ok(natureToObj(requireExists(n, 'nature', args.nature)));
     }),
@@ -659,8 +653,7 @@ export function registerDataTools(server: McpServer) {
       },
     },
     wrap(async (args: { species: string }) => {
-      const gen = 9;
-      const dex = getDex(gen);
+      const dex = getChampionsDex();
       const s = requireSpecies(dex, args.species);
       const ls = await dex.learnsets.getByID(toID(s.name));
       if (!ls.exists) throw new Error(`No learnset data for "${args.species}".`);
@@ -712,8 +705,7 @@ export function registerDataTools(server: McpServer) {
       },
     },
     wrap(async (args: { type: string }) => {
-      const gen = 9;
-      const dex = getDex(gen);
+      const dex = getChampionsDex();
       const t = dex.types.get(args.type);
       return ok(typeToObj(requireExists(t, 'type', args.type)));
     }),
@@ -782,8 +774,7 @@ export function registerDataTools(server: McpServer) {
       },
     },
     wrap(async (args: { attacker?: string; defender?: string }) => {
-      const gen = 9;
-      const dex = getDex(gen);
+      const dex = getChampionsDex();
 
       const resolveDefender = (name: string): { label: string; types: string[] } => {
         const t = dex.types.get(name);
@@ -795,7 +786,7 @@ export function registerDataTools(server: McpServer) {
 
       if (args.attacker && args.defender) {
         const def = resolveDefender(args.defender);
-        const mult = typeEffectiveness(args.attacker, def.types, gen);
+        const mult = typeEffectiveness(args.attacker, def.types, 9);
         return ok({
           attacker: args.attacker,
           defender: def.label,
@@ -808,7 +799,7 @@ export function registerDataTools(server: McpServer) {
       if (args.attacker) {
         const coverage: Record<string, { effectiveness: number; label: string }> = {};
         for (const t of TYPES18) {
-          const m = typeEffectiveness(args.attacker, [t], gen);
+          const m = typeEffectiveness(args.attacker, [t], 9);
           coverage[t] = { effectiveness: m, label: effectivenessLabel(m) };
         }
         return ok({ attacker: args.attacker, coverage });
@@ -818,7 +809,7 @@ export function registerDataTools(server: McpServer) {
         const def = resolveDefender(args.defender);
         const taken: Record<string, { effectiveness: number; label: string }> = {};
         for (const t of TYPES18) {
-          const m = typeEffectiveness(t, def.types, gen);
+          const m = typeEffectiveness(t, def.types, 9);
           taken[t] = { effectiveness: m, label: effectivenessLabel(m) };
         }
         return ok({ defender: def.label, defenderTypes: def.types, damageTaken: taken });
@@ -828,7 +819,7 @@ export function registerDataTools(server: McpServer) {
       for (const atk of TYPES18) {
         chart[atk] = {};
         for (const def of TYPES18) {
-          chart[atk][def] = typeEffectiveness(atk, [def], gen);
+          chart[atk][def] = typeEffectiveness(atk, [def], 9);
         }
       }
       return ok({ chart, note: 'Rows are attacking types, columns are defending types. Multipliers: 0 immune, 0.25, 0.5, 1, 2, 4.' });

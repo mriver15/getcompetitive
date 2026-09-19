@@ -4,7 +4,8 @@
  */
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { getDex, learnableMoveIds, toID } from '../dex.js';
+import { learnableMoveIds, toID } from '../dex.js';
+import { getChampionsDex } from '../champions.js';
 import {
   REGULATION_SETS,
   getRegulationSet,
@@ -318,7 +319,7 @@ export function registerRegulationTools(server: McpServer) {
         );
       }
 
-      const dex = getDex(9);
+      const dex = getChampionsDex();
       const eligible = new Set(set.eligibleSpecies.map(toID));
       const megaSet = new Set(set.megaEvolution.species.map(toID));
 
