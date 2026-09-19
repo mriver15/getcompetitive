@@ -13,7 +13,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "smoke": "node test/smoke.mjs",
-    "test": "npm run build && node test/smoke.mjs",
+    "test": "npm run build && node test/smoke.mjs && node test/champions.mjs",
     "prepublishOnly": "npm run build"
   },
   "keywords": [

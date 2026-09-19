@@ -197,8 +197,13 @@ The Showdown dataset and battle math track `@pkmn/dex` / `@smogon/calc`. Officia
 (`src/threats.ts`) with `node scripts/build-threats.mjs <regulation>`, and the
 **two-window usage history** behind `compare_meta` with
 `node scripts/build-meta-history.mjs <regulation>` (it refuses to write unless
-every tournament in the window was fetched). All generated data files are
-committed, so the tools stay offline at runtime. See [CONTRIBUTING](CONTRIBUTING.md).
+every tournament in the window was fetched). The **Champions game model** is
+the single `getChampionsDex()` layer: `node scripts/verify-champions.mjs`
+diffs base stats, types and abilities for every Champions-exclusive form, the
+whole roster, and every threat species against official data and refreshes the
+committed facts table, which `test/champions.mjs` pins as golden regression
+tests. All generated data files are committed, so the tools stay offline at
+runtime. See [CONTRIBUTING](CONTRIBUTING.md).
 
 ## Contributing
 

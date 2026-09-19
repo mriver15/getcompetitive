@@ -11,7 +11,8 @@
  */
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { getDex, toID } from '../dex.js';
+import { toID } from '../dex.js';
+import { getChampionsDex } from '../champions.js';
 import { ok, wrap, READ_ONLY_ANNOTATIONS } from '../result.js';
 import raw from '../sprites.data.js';
 
@@ -60,7 +61,7 @@ export function registerSpritesTool(server: McpServer) {
       },
     },
     wrap(async (args: { species: string[]; size?: 'artwork' | 'icon' }) => {
-      const dex = getDex(9);
+      const dex = getChampionsDex();
       const kind = args.size === 'icon' ? 'in-game sprite' : 'official artwork';
       const urlFor = args.size === 'icon' ? ICON_URL : ARTWORK_URL;
       const sprites: { species: string; dexNumber: number; url: string; altText: string }[] = [];

@@ -5,7 +5,8 @@
  */
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { getDex, typeEffectiveness, TYPES18, finalStat, resolveEvs } from '../dex.js';
+import { typeEffectiveness, TYPES18, finalStat, resolveEvs } from '../dex.js';
+import { getChampionsDex } from '../champions.js';
 import { getRegulationSet } from '../regulations.js';
 import { getThreatList } from '../threats.js';
 import { ok, wrap, requireExists, READ_ONLY_ANNOTATIONS } from '../result.js';
@@ -270,7 +271,7 @@ export function registerAnalyzeTools(server: McpServer) {
         regulation?: string;
         opponent?: string[];
       }) => {
-        const dex = getDex(9);
+        const dex = getChampionsDex();
 
         const set = args.regulation ? getRegulationSet(args.regulation) : undefined;
         if (args.regulation && !set) {

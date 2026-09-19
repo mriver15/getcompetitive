@@ -4,7 +4,8 @@
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Move as CalcMove, calculate } from '@smogon/calc';
-import { getDex, statTable, damageResult, finalStat, buildPokemon, buildField, getCalcGen, resolveEvs, evsToChampionsPoints, STATS, type SetInput } from '../dex.js';
+import { statTable, damageResult, finalStat, buildPokemon, buildField, getCalcGen, resolveEvs, evsToChampionsPoints, STATS, type SetInput } from '../dex.js';
+import { getChampionsDex } from '../champions.js';
 import { getRegulationSet } from '../regulations.js';
 import { ok, wrap, requireExists, READ_ONLY_ANNOTATIONS } from '../result.js';
 import { evMap, championsPointsMap } from './schemas.js';
@@ -173,7 +174,7 @@ export function registerCalcTools(server: McpServer) {
         ivs?: Record<string, number>;
       }) => {
         const gen = 9;
-        const dex = getDex(gen);
+        const dex = getChampionsDex();
         const s = dex.species.get(args.species);
         requireExists(s, 'Pokemon species', args.species);
 
@@ -302,7 +303,7 @@ export function registerCalcTools(server: McpServer) {
       }) => {
         const gen = 9;
         // Validate species + move names for helpful errors before the calc throws.
-        const dex = getDex(gen);
+        const dex = getChampionsDex();
         requireExists(dex.species.get(args.attacker.species), 'Pokemon species', args.attacker.species);
         requireExists(dex.species.get(args.defender.species), 'Pokemon species', args.defender.species);
         requireExists(dex.moves.get(args.move), 'move', args.move);
@@ -409,7 +410,7 @@ export function registerCalcTools(server: McpServer) {
         field?: { gameType?: 'Singles' | 'Doubles'; weather?: string; terrain?: string };
       }) => {
         const gen = 9;
-        const dex = getDex(gen);
+        const dex = getChampionsDex();
         requireExists(dex.species.get(args.attacker.species), 'Pokemon species', args.attacker.species);
 
         const moveNames = args.move ? [args.move] : (args.attacker.moves ?? []);
@@ -592,7 +593,7 @@ export function registerCalcTools(server: McpServer) {
         regulation?: string;
       }) => {
         const gen = 9;
-        const dex = getDex(gen);
+        const dex = getChampionsDex();
         const sp = dex.species.get(args.species);
         requireExists(sp, 'Pokemon species', args.species);
 
@@ -762,7 +763,7 @@ export function registerCalcTools(server: McpServer) {
         field?: { gameType?: 'Singles' | 'Doubles'; weather?: string; terrain?: string };
       }) => {
         const gen = 9;
-        const dex = getDex(gen);
+        const dex = getChampionsDex();
         const sp = dex.species.get(args.species);
         requireExists(sp, 'Pokemon species', args.species);
         const nature = args.nature ?? 'Serious';

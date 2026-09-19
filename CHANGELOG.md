@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **ChampionsDex — the verified game-model foundation.** Every gameplay tool
+  now resolves through one `getChampionsDex()` layer instead of calling the raw
+  dex directly. `scripts/verify-champions.mjs` diffs the bundled dataset
+  against official Champions data and refreshes the committed facts table
+  (`src/champions.data.ts`); `test/champions.mjs` pins it all as golden
+  regression tests: exclusive-form typings and BSTs, roster integrity, the
+  stat-point math contract, and representative damage rolls. Verification
+  result: **266/266 species with measured usage match official base stats,
+  types and abilities, zero divergences** — including 38 of the 49
+  Champions-exclusive forms; the 11 unindexed forms and 63 unindexed roster
+  species carry no usage data (their detail endpoints return fallback data for
+  other species, e.g. Watchog returning Rillaboom's stats) and are reported as
+  unverifiable rather than guessed at. No public-surface changes.
+
 ## [4.5.0] - 2026-09-18
 
 ### Added
