@@ -311,11 +311,20 @@ export function registerMetaTools(server: McpServer) {
     species: string;
     current: number;
     previous: number;
+    rankDelta: number;
   }
   interface MetaCoreEntry {
     core: string[];
     current: number;
     previous: number;
+    liftCurrent: number;
+    liftPrevious: number;
+  }
+  interface MetaSetChange {
+    species: string;
+    item: { from: string; to: string } | null;
+    ability: { from: string; to: string } | null;
+    nature: { from: string; to: string } | null;
   }
   const META_HISTORY = rawHistory as unknown as Record<
     string,
@@ -331,6 +340,7 @@ export function registerMetaTools(server: McpServer) {
       };
       species: MetaHistoryEntry[];
       cores: MetaCoreEntry[];
+      setChanges: MetaSetChange[];
     }
   >;
 
@@ -371,6 +381,7 @@ export function registerMetaTools(server: McpServer) {
               previous: z.number().describe('Usage share in the previous window, in percent.'),
               current: z.number().describe('Usage share in the current window, in percent.'),
               delta: z.number().describe('`current` minus `previous`, in percentage points.'),
+              rankDelta: z.number().int().describe('How many ranks it climbed between windows; positive is climbing, 0 is unchanged.'),
             }),
           )
           .describe('The biggest gainers, largest delta first.'),
@@ -381,6 +392,7 @@ export function registerMetaTools(server: McpServer) {
               previous: z.number().describe('Usage share in the previous window, in percent.'),
               current: z.number().describe('Usage share in the current window, in percent.'),
               delta: z.number().describe('`current` minus `previous`, in percentage points.'),
+              rankDelta: z.number().int().describe('How many ranks it fell between windows; negative is falling.'),
             }),
           )
           .describe('The biggest losers, most negative delta first.'),
@@ -391,9 +403,21 @@ export function registerMetaTools(server: McpServer) {
               previous: z.number().describe('Share of previous-window teams carrying both, in percent.'),
               current: z.number().describe('Share of current-window teams carrying both, in percent.'),
               delta: z.number().describe('`current` minus `previous`, in percentage points.'),
+              liftCurrent: z.number().describe('Co-occurrence lift in the current window: 1.0 means independent, above 1.0 means the pair appears together more than popularity alone explains.'),
+              liftPrevious: z.number().describe('The same lift in the previous window, so rising lift is synergy and flat lift is just popularity.'),
             }),
           )
           .describe('The species pairs gaining the most co-occurrence, largest delta first.'),
+        setChanges: z
+          .array(
+            z.object({
+              species: z.string().describe('Base species name.'),
+              item: z.object({ from: z.string(), to: z.string() }).nullable().describe('Its most-played item, previous to current; null when unchanged.'),
+              ability: z.object({ from: z.string(), to: z.string() }).nullable().describe('Its most-played ability, previous to current; null when unchanged.'),
+              nature: z.object({ from: z.string(), to: z.string() }).nullable().describe('Its most-played nature, previous to current; null when unchanged.'),
+            }),
+          )
+          .describe('Species whose most-played set changed between the windows — what it runs, not just how much of it.'),
         note: z.string().describe('How the numbers were computed: team counts, tournament source, and that the windows are rolling.'),
       },
     },
@@ -406,8 +430,8 @@ export function registerMetaTools(server: McpServer) {
         );
       }
       const deltaOf = (e: { current: number; previous: number }) => Number((e.current - e.previous).toFixed(1));
-      const row = (e: MetaHistoryEntry) => ({ species: e.species, previous: e.previous, current: e.current, delta: deltaOf(e) });
-      const coreRow = (e: MetaCoreEntry) => ({ core: e.core, previous: e.previous, current: e.current, delta: deltaOf(e) });
+      const row = (e: MetaHistoryEntry) => ({ species: e.species, previous: e.previous, current: e.current, delta: deltaOf(e), rankDelta: e.rankDelta });
+      const coreRow = (e: MetaCoreEntry) => ({ core: e.core, previous: e.previous, current: e.current, delta: deltaOf(e), liftCurrent: e.liftCurrent, liftPrevious: e.liftPrevious });
       return ok({
         regulation: entry.name,
         sourceAsOf: entry.sourceAsOf,
@@ -419,6 +443,7 @@ export function registerMetaTools(server: McpServer) {
           .slice(0, 12)
           .map(row),
         emergingCores: entry.cores.filter((c) => deltaOf(c) > 0).slice(0, 8).map(coreRow),
+        setChanges: entry.setChanges.slice(0, 12),
         note: entry.note,
       });
     }),

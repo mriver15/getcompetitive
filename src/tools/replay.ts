@@ -13,22 +13,29 @@ import { typeEffectiveness, TYPES18 } from '../dex.js';
 import { getChampionsDex } from '../champions.js';
 import { ok, wrap, READ_ONLY_ANNOTATIONS } from '../result.js';
 
-interface ParsedReplay {
+export interface ParsedReplay {
   players: Record<string, string>;
   winner?: string;
   turns: number;
   teamSize: Record<string, number>;
   teams: Record<string, string[]>;
+  positions: Record<string, string>;
+  movesByPos: Record<string, string[]>;
+  itemReveals: Record<string, string>;
+  abilityReveals: Record<string, string>;
   kos: { turn: number; move: string; attacker: string; defender: string }[];
   speed: { turn: number; faster: string; slower: string }[];
-  damage: { turn: number; move: string; attacker: string; defender: string; percent: number }[];
+  damage: { turn: number; move: string; attacker: string; defender: string; percent: number; taken: number }[];
   unresolved: string[];
 }
 
-function parseReplay(log: string): ParsedReplay {
+export function parseReplay(log: string): ParsedReplay {
   const dex = getChampionsDex();
   const players: Record<string, string> = {};
   const species: Record<string, string> = {};
+  const movesByPos: Record<string, string[]> = {};
+  const itemReveals: Record<string, string> = {};
+  const abilityReveals: Record<string, string> = {};
   const seen = { p1: new Set<string>(), p2: new Set<string>() };
   const teamSize: Record<string, number> = {};
   const kos: ParsedReplay['kos'] = [];
@@ -36,6 +43,7 @@ function parseReplay(log: string): ParsedReplay {
   const damage: ParsedReplay['damage'] = [];
   const unresolved: string[] = [];
   const lastMoveOn: Record<string, { turn: number; move: string; attacker: string }> = {};
+  const damagePctBefore: Record<string, number> = {};
   const moveOrder: { turn: number; pos: string; side: string }[] = [];
   let winner: string | undefined;
   let currentTurn = 0;
@@ -81,7 +89,18 @@ function parseReplay(log: string): ParsedReplay {
         const move = args[1] ?? '';
         const targetKey = (args[2] ?? '').split(':')[0];
         moveOrder.push({ turn: currentTurn, pos: args[0], side: args[0].startsWith('p1') ? 'p1' : 'p2' });
+        movesByPos[posKey] = [...(movesByPos[posKey] ?? []), move];
         if (targetKey && targetKey !== '') lastMoveOn[targetKey] = { turn: currentTurn, move, attacker: args[0] };
+        break;
+      }
+      case '-item': {
+        // |-item|p2a: Gholdengo|Choice Specs|[from] Trick
+        itemReveals[args[0].split(':')[0]] = args[1] ?? '';
+        break;
+      }
+      case '-ability': {
+        // |-ability|p2a: Incineroar|Intimidate|[from] ability: Intimidate
+        abilityReveals[args[0].split(':')[0]] = args[1] ?? '';
         break;
       }
       case '-damage': {
@@ -91,7 +110,10 @@ function parseReplay(log: string): ParsedReplay {
         const att = lastMoveOn[targetKey];
         if (match && att) {
           const percent = Number(((Number(match[1]) / Number(match[2])) * 100).toFixed(1));
-          damage.push({ turn: currentTurn, move: att.move, attacker: att.attacker, defender: args[0], percent });
+          // Cumulative HP in the log; the per-hit share is what analysis needs.
+          const taken = Number(((100 - percent - (damagePctBefore[targetKey] ?? 0)).toFixed(1)));
+          damagePctBefore[targetKey] = 100 - percent;
+          damage.push({ turn: currentTurn, move: att.move, attacker: att.attacker, defender: args[0], percent, taken });
         }
         break;
       }
@@ -128,6 +150,10 @@ function parseReplay(log: string): ParsedReplay {
     turns: currentTurn,
     teamSize,
     teams: { p1: [...seen.p1], p2: [...seen.p2] },
+    positions: species,
+    movesByPos,
+    itemReveals,
+    abilityReveals,
     kos,
     speed,
     damage,

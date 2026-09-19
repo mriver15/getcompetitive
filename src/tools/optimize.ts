@@ -16,6 +16,7 @@ import { REGULATION_SETS, getRegulationSet, setStatus } from '../regulations.js'
 import { getThreatList, findThreat } from '../threats.js';
 import { ok, wrap, READ_ONLY_ANNOTATIONS } from '../result.js';
 import { parsedSetSchema, resolveMembers, type ParsedSet } from './team.js';
+import { detectRoles, ROLES, type Role } from '../roles.js';
 
 export function registerOptimizeTeamTool(server: McpServer) {
   server.registerTool(
@@ -46,6 +47,18 @@ export function registerOptimizeTeamTool(server: McpServer) {
           .array(z.string())
           .optional()
           .describe('Species the finished team must answer, e.g. ["Sneasler", "Gholdengo"]; omitted, the regulation\u2019s five most-used threats are used.'),
+        requiredRoles: z
+          .array(z.enum(ROLES))
+          .optional()
+          .describe('Competitive roles the filled slots must collectively provide, e.g. ["tailwind", "fake_out"]; candidates earn score for roles the team still lacks.'),
+        excludedSpecies: z
+          .array(z.string())
+          .optional()
+          .describe('Species to exclude from the search, e.g. ["Milotic"]; case- and punctuation-insensitive.'),
+        playstyle: z
+          .string()
+          .optional()
+          .describe('Shorthand for the objective: "tailwind" or "trick-room" map to the corresponding required role; any other value is carried into the note verbatim.'),
       },
       outputSchema: {
         regulation: z.string().describe('The regulation whose roster the candidates came from.'),
@@ -60,12 +73,20 @@ export function registerOptimizeTeamTool(server: McpServer) {
                 }),
               )
               .describe('Threats the recommendations were scored against answering.'),
+            requiredRoles: z
+              .array(z.enum(ROLES))
+              .optional()
+              .describe('The roles the filled slots were asked to provide; present only when supplied or mapped from a playstyle.'),
           })
           .describe('The constraint set the search was run against.'),
         recommendations: z
           .array(
             z.object({
               members: z.array(z.string()).describe('The species to add — one, or a pair when two slots were asked for.'),
+              roles: z
+                .array(z.enum(ROLES))
+                .optional()
+                .describe('The competitive roles this fill provides, detected from learnset, abilities and base stats; present when any apply.'),
               score: z.number().describe('The fill\u2019s score against the constraints; higher is better, absolute value has no external meaning.'),
               reasons: z
                 .array(z.string())
@@ -76,7 +97,7 @@ export function registerOptimizeTeamTool(server: McpServer) {
         note: z.string().describe('The limits: unranked species are scored on typing alone because their movesets are unknown, usage is a preference not a claim, and Species Clause is respected by construction.'),
       },
     },
-    wrap(async (args: { team: ParsedSet[]; slots: 1 | 2; regulation?: string; coverTypes?: string[]; answerThreats?: string[] }) => {
+    wrap(async (args: { team: ParsedSet[]; slots: 1 | 2; regulation?: string; coverTypes?: string[]; answerThreats?: string[]; requiredRoles?: Role[]; excludedSpecies?: string[]; playstyle?: string }) => {
       const dex = getChampionsDex();
       const regulationId = args.regulation ?? (REGULATION_SETS.find((s) => setStatus(s) === 'current')?.id ?? 'm-c');
       const set = getRegulationSet(regulationId);
@@ -102,34 +123,46 @@ export function registerOptimizeTeamTool(server: McpServer) {
         };
       });
 
-      // --- Candidates: legal roster, Species Clause respected ---
+      // --- Candidates: legal roster, Species Clause respected, objectives applied ---
+      const excluded = new Set((args.excludedSpecies ?? []).map((s) => s.toLowerCase().replace(/[^a-z0-9]/g, '')));
+      const playstyleRoles: Role[] = args.playstyle === 'tailwind' ? ['tailwind'] : args.playstyle === 'trick-room' ? ['trick_room'] : [];
+      const requiredRoles = [...new Set([...(args.requiredRoles ?? []), ...playstyleRoles])];
       const onTeam = new Set(members.map((m) => m.baseSpecies.toLowerCase().replace(/[^a-z0-9]/g, '')));
-      const candidates: { name: string; types: string[]; baseSpe: number; usage: number }[] = [];
+      const candidates: { name: string; types: string[]; baseSpe: number; usage: number; roles: Role[] }[] = [];
       for (const name of set.eligibleSpecies) {
         const sp = dex.species.get(name);
         if (!sp.exists) continue;
-        if (onTeam.has((sp.baseSpecies ?? sp.name).toLowerCase().replace(/[^a-z0-9]/g, ''))) continue;
+        const key = (sp.baseSpecies ?? sp.name).toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (onTeam.has(key) || excluded.has(key)) continue;
         const curated = findThreat(name, set.id);
-        candidates.push({ name: sp.name, types: [...sp.types], baseSpe: sp.baseStats.spe, usage: curated?.threat.usage ?? 0 });
+        candidates.push({
+          name: sp.name,
+          types: [...sp.types],
+          baseSpe: sp.baseStats.spe,
+          usage: curated?.threat.usage ?? 0,
+          roles: await detectRoles(sp.name),
+        });
       }
 
-      const scoreOf = (c: { types: string[]; baseSpe: number; usage: number }) => {
+      const scoreOf = (c: (typeof candidates)[number]) => {
         const covers = constraintTypes.filter((t) => c.types.some((ct) => typeEffectiveness(ct, [t], 9) > 1));
         const resists = threats.filter((t) => t.types.every((tt) => typeEffectiveness(tt, c.types, 9) < 1));
         const hits = threats.filter((t) => c.types.some((ct) => typeEffectiveness(ct, t.types, 9) > 1));
-        const score = covers.length * 3 + resists.length * 2 + hits.length * 2 + c.usage / 25 + c.baseSpe / 200;
-        return { covers, resists, hits, score };
+        const roles = requiredRoles.filter((r) => c.roles.includes(r));
+        const score = covers.length * 3 + resists.length * 2 + hits.length * 2 + roles.length * 3 + c.usage / 25 + c.baseSpe / 200;
+        return { covers, resists, hits, roles, score };
       };
 
       const scored = candidates
         .map((c) => ({ ...c, ...scoreOf(c) }))
         .sort((a, b) => b.score - a.score);
 
-      const reasonsOf = (s: { name: string; covers: string[]; resists: { name: string }[]; hits: { name: string }[]; usage: number }) => {
+      const reasonsOf = (s: { name: string; covers: string[]; resists: { name: string }[]; hits: { name: string }[]; roles: Role[]; usage: number }) => {
         const out: string[] = [];
         if (s.covers.length) out.push(`${s.name} hits ${s.covers.join(', ')} super-effectively`);
         if (s.resists.length) out.push(`${s.name} resists ${s.resists.map((t) => t.name).join(', ')} on its typing`);
         if (s.hits.length) out.push(`${s.name} hits ${s.hits.map((t) => t.name).join(', ')} super-effectively`);
+        if (s.roles.length) out.push(`${s.name} provides the ${s.roles.join(', ')} role${s.roles.length === 1 ? '' : 's'}`);
         if (s.usage) out.push(`${s.name} carries ${s.usage}% measured usage`);
         return out;
       };
@@ -137,7 +170,7 @@ export function registerOptimizeTeamTool(server: McpServer) {
       const top = scored.slice(0, 30);
       const recommendations =
         args.slots === 1
-          ? top.slice(0, 8).map((s) => ({ members: [s.name], score: Number(s.score.toFixed(1)), reasons: reasonsOf(s) }))
+          ? top.slice(0, 8).map((s) => ({ members: [s.name], roles: s.roles, score: Number(s.score.toFixed(1)), reasons: reasonsOf(s) }))
           : (() => {
               const pairs: { a: (typeof top)[number]; b: (typeof top)[number]; union: string[]; score: number }[] = [];
               for (let i = 0; i < top.length; i++) {
@@ -148,7 +181,9 @@ export function registerOptimizeTeamTool(server: McpServer) {
                   const covers = constraintTypes.filter((t) => union.some((ct) => typeEffectiveness(ct, [t], 9) > 1));
                   const hits = threats.filter((t) => union.some((ct) => typeEffectiveness(ct, t.types, 9) > 1));
                   const resists = threats.filter((t) => t.types.every((tt) => typeEffectiveness(tt, union, 9) < 1));
-                  const score = covers.length * 3 + resists.length * 2 + hits.length * 2 + (a.usage + b.usage) / 25 + Math.max(a.baseSpe, b.baseSpe) / 200;
+                  const roleUnion = new Set([...a.roles, ...b.roles]);
+                  const roleHit = requiredRoles.filter((r) => roleUnion.has(r)).length;
+                  const score = covers.length * 3 + resists.length * 2 + hits.length * 2 + roleHit * 3 + (a.usage + b.usage) / 25 + Math.max(a.baseSpe, b.baseSpe) / 200;
                   pairs.push({ a, b, union, score });
                 }
               }
@@ -157,6 +192,7 @@ export function registerOptimizeTeamTool(server: McpServer) {
                 .slice(0, 6)
                 .map((p) => ({
                   members: [p.a.name, p.b.name],
+                  roles: [...new Set([...p.a.roles, ...p.b.roles])],
                   score: Number(p.score.toFixed(1)),
                   reasons: [
                     ...[...new Set([...p.a.covers, ...p.b.covers])].length
@@ -173,9 +209,10 @@ export function registerOptimizeTeamTool(server: McpServer) {
         constraints: {
           types: constraintTypes,
           threats: threats.map((t) => ({ species: t.name, ...(t.usage !== undefined ? { usage: t.usage } : {}) })),
+          ...(requiredRoles.length ? { requiredRoles } : {}),
         },
         recommendations,
-        note: 'Candidates are scored on typing alone unless the species is ranked, because an unranked species\u2019 moveset is unknown — usage is a preference, not a claim about the set. Species Clause and roster legality are respected by construction, and every recommendation carries its reasons so the tradeoff is visible.',
+        note: `Candidates are scored on typing and detected roles (learnset and ability facts), with measured usage as a preference and not a claim about the set. Species Clause, excluded species and roster legality hold by construction, and every recommendation carries its reasons so the tradeoff is visible.${args.playstyle && !['tailwind', 'trick-room'].includes(args.playstyle) ? ` Playstyle "${args.playstyle}" was carried verbatim and did not change the search.` : ''}`,
       });
     }),
   );

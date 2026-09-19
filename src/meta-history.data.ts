@@ -8,219 +8,259 @@ export default { "m-c": {
   "name": "Regulation Set M-C",
   "source": "usage",
   "sourceAsOf": "2026-09-19",
-  "note": "Computed from 2091 teams across 29 tournaments in the last 7 days and 1292 teams across the 7 days before that. Windows are rolling: regenerate to slide them forward.",
+  "note": "Computed from 2082 teams across 30 tournaments in the last 7 days and 1638 teams across the 7 days before that. Windows are rolling: regenerate to slide them forward.",
   "windows": {
     "current": {
       "start": "2026-09-12",
       "end": "2026-09-19",
-      "teams": 2091
+      "teams": 2082
     },
     "previous": {
       "start": "2026-09-05",
       "end": "2026-09-12",
-      "teams": 1292
+      "teams": 1638
     }
   },
   "species": [
     {
       "species": "Gholdengo",
-      "current": 23.7,
-      "previous": 11.8
+      "current": 25.8,
+      "previous": 12.7,
+      "rankDelta": 7
     },
     {
       "species": "Raichu",
-      "current": 15.3,
-      "previous": 6.9
+      "current": 17.2,
+      "previous": 7,
+      "rankDelta": 13
     },
     {
       "species": "Arcanine",
-      "current": 18.4,
-      "previous": 11
+      "current": 19.3,
+      "previous": 11.5,
+      "rankDelta": 4
     },
     {
       "species": "Milotic",
-      "current": 12.1,
-      "previous": 7
-    },
-    {
-      "species": "Rillaboom",
-      "current": 56.5,
-      "previous": 51.8
+      "current": 12.8,
+      "previous": 7.5,
+      "rankDelta": 8
     },
     {
       "species": "Staraptor",
-      "current": 7.5,
-      "previous": 3.4
+      "current": 8.1,
+      "previous": 3.4,
+      "rankDelta": 20
+    },
+    {
+      "species": "Rillaboom",
+      "current": 57.1,
+      "previous": 52.9,
+      "rankDelta": 0
     },
     {
       "species": "Volcarona",
-      "current": 6.7,
-      "previous": 3.3
+      "current": 7.2,
+      "previous": 3.4,
+      "rankDelta": 16
     },
     {
       "species": "Gengar",
-      "current": 4.6,
-      "previous": 1.7
-    },
-    {
-      "species": "Annihilape",
-      "current": 3.6,
-      "previous": 0.9
-    },
-    {
-      "species": "Metagross",
-      "current": 5.5,
-      "previous": 2.8
+      "current": 5.4,
+      "previous": 1.8,
+      "rankDelta": 25
     },
     {
       "species": "Politoed",
-      "current": 4.7,
-      "previous": 2.2
+      "current": 5.3,
+      "previous": 2.2,
+      "rankDelta": 20
+    },
+    {
+      "species": "Metagross",
+      "current": 5.6,
+      "previous": 2.9,
+      "rankDelta": 16
     },
     {
       "species": "Archaludon",
-      "current": 11.3,
-      "previous": 9
-    },
-    {
-      "species": "Froslass",
-      "current": 7,
-      "previous": 5.5
+      "current": 11.8,
+      "previous": 9.5,
+      "rankDelta": 0
     },
     {
       "species": "Sylveon",
-      "current": 11.5,
-      "previous": 10.2
+      "current": 11.8,
+      "previous": 9.6,
+      "rankDelta": -2
     },
     {
-      "species": "Indeedee",
-      "current": 25.5,
-      "previous": 24.3
+      "species": "Annihilape",
+      "current": 3.4,
+      "previous": 1.3,
+      "rankDelta": 15
+    },
+    {
+      "species": "Froslass",
+      "current": 7.3,
+      "previous": 5.4,
+      "rankDelta": 5
     },
     {
       "species": "Armarouge",
-      "current": 5.8,
-      "previous": 4.8
+      "current": 6.1,
+      "previous": 5,
+      "rankDelta": 5
+    },
+    {
+      "species": "Glimmora",
+      "current": 3.5,
+      "previous": 2.5,
+      "rankDelta": 6
+    },
+    {
+      "species": "Indeedee",
+      "current": 25.4,
+      "previous": 24.5,
+      "rankDelta": 1
     },
     {
       "species": "Gardevoir",
       "current": 8.8,
-      "previous": 8.1
-    },
-    {
-      "species": "Glimmora",
-      "current": 3.1,
-      "previous": 2.6
-    },
-    {
-      "species": "Salamence",
-      "current": 37.2,
-      "previous": 37.1
-    },
-    {
-      "species": "Golisopod",
-      "current": 16.5,
-      "previous": 16.4
-    },
-    {
-      "species": "Grimmsnarl",
-      "current": 4.9,
-      "previous": 4.9
-    },
-    {
-      "species": "Excadrill",
-      "current": 5.5,
-      "previous": 5.6
-    },
-    {
-      "species": "Pawmot",
-      "current": 3.6,
-      "previous": 3.8
-    },
-    {
-      "species": "Primarina",
-      "current": 3.7,
-      "previous": 3.9
-    },
-    {
-      "species": "Tyranitar",
-      "current": 7.7,
-      "previous": 8.2
-    },
-    {
-      "species": "Swampert",
-      "current": 3.6,
-      "previous": 4.1
-    },
-    {
-      "species": "Dragonite",
-      "current": 3.6,
-      "previous": 4.1
-    },
-    {
-      "species": "Pelipper",
-      "current": 12.7,
-      "previous": 13.5
-    },
-    {
-      "species": "Farigiraf",
-      "current": 15.5,
-      "previous": 16.3
-    },
-    {
-      "species": "Hatterene",
-      "current": 3.6,
-      "previous": 4.5
+      "previous": 8.3,
+      "rankDelta": 0
     },
     {
       "species": "Garchomp",
-      "current": 13.1,
-      "previous": 14
+      "current": 13.4,
+      "previous": 13.2,
+      "rankDelta": -2
+    },
+    {
+      "species": "Golisopod",
+      "current": 16.2,
+      "previous": 16.4,
+      "rankDelta": -3
+    },
+    {
+      "species": "Grimmsnarl",
+      "current": 4.7,
+      "previous": 5,
+      "rankDelta": -4
+    },
+    {
+      "species": "Excadrill",
+      "current": 5.4,
+      "previous": 5.8,
+      "rankDelta": -1
+    },
+    {
+      "species": "Dragonite",
+      "current": 3.5,
+      "previous": 4,
+      "rankDelta": -1
+    },
+    {
+      "species": "Pawmot",
+      "current": 3.5,
+      "previous": 4.1,
+      "rankDelta": 1
+    },
+    {
+      "species": "Swampert",
+      "current": 3.5,
+      "previous": 4.2,
+      "rankDelta": -1
+    },
+    {
+      "species": "Pelipper",
+      "current": 12.8,
+      "previous": 13.6,
+      "rankDelta": -5
+    },
+    {
+      "species": "Farigiraf",
+      "current": 15.2,
+      "previous": 16,
+      "rankDelta": -3
+    },
+    {
+      "species": "Primarina",
+      "current": 3.4,
+      "previous": 4.3,
+      "rankDelta": -7
+    },
+    {
+      "species": "Tyranitar",
+      "current": 7.4,
+      "previous": 8.4,
+      "rankDelta": -4
     },
     {
       "species": "Venusaur",
       "current": 3.5,
-      "previous": 4.6
-    },
-    {
-      "species": "Charizard",
-      "current": 9.1,
-      "previous": 10.7
-    },
-    {
-      "species": "Aerodactyl",
-      "current": 2.8,
-      "previous": 4.5
+      "previous": 4.5,
+      "rankDelta": -8
     },
     {
       "species": "Delphox",
-      "current": 2.5,
-      "previous": 4.3
-    },
-    {
-      "species": "Torkoal",
-      "current": 4.5,
-      "previous": 6.6
-    },
-    {
-      "species": "Lucario",
-      "current": 5.9,
-      "previous": 8.1
-    },
-    {
-      "species": "Incineroar",
-      "current": 33.4,
-      "previous": 35.6
-    },
-    {
-      "species": "Sneasler",
-      "current": 46.8,
-      "previous": 49.3
+      "current": 2.6,
+      "previous": 3.8,
+      "rankDelta": -6
     },
     {
       "species": "Ninetales",
+      "current": 2.7,
+      "previous": 4.3,
+      "rankDelta": -9
+    },
+    {
+      "species": "Hatterene",
+      "current": 3,
+      "previous": 4.7,
+      "rankDelta": -12
+    },
+    {
+      "species": "Charizard",
+      "current": 8.7,
+      "previous": 10.7,
+      "rankDelta": -5
+    },
+    {
+      "species": "Aerodactyl",
       "current": 2.5,
-      "previous": 5
+      "previous": 4.5,
+      "rankDelta": -13
+    },
+    {
+      "species": "Whimsicott",
+      "current": 5.3,
+      "previous": 7.6,
+      "rankDelta": -9
+    },
+    {
+      "species": "Incineroar",
+      "current": 32.9,
+      "previous": 35.3,
+      "rankDelta": 0
+    },
+    {
+      "species": "Lucario",
+      "current": 5.6,
+      "previous": 8.1,
+      "rankDelta": -7
+    },
+    {
+      "species": "Baxcalibur",
+      "current": 3.7,
+      "previous": 6.3,
+      "rankDelta": -9
+    },
+    {
+      "species": "Salamence",
+      "current": 35.9,
+      "previous": 38.5,
+      "rankDelta": 0
     }
   ],
   "cores": [
@@ -229,160 +269,220 @@ export default { "m-c": {
         "Gholdengo",
         "Rillaboom"
       ],
-      "current": 19.7,
-      "previous": 8.7
+      "current": 21.8,
+      "previous": 9.3,
+      "liftCurrent": 1.48,
+      "liftPrevious": 1.38
     },
     {
       "core": [
         "Raichu",
         "Rillaboom"
       ],
-      "current": 12.8,
-      "previous": 4.6
+      "current": 14.5,
+      "previous": 4.8,
+      "liftCurrent": 1.48,
+      "liftPrevious": 1.3
     },
     {
       "core": [
         "Gholdengo",
         "Raichu"
       ],
-      "current": 9.6,
-      "previous": 2.2
-    },
-    {
-      "core": [
-        "Arcanine",
-        "Rillaboom"
-      ],
-      "current": 15,
-      "previous": 8.4
+      "current": 11.2,
+      "previous": 2.4,
+      "liftCurrent": 2.52,
+      "liftPrevious": 2.7
     },
     {
       "core": [
         "Arcanine",
         "Gholdengo"
       ],
-      "current": 8.6,
-      "previous": 2.5
+      "current": 10,
+      "previous": 2.7,
+      "liftCurrent": 2.01,
+      "liftPrevious": 1.85
+    },
+    {
+      "core": [
+        "Arcanine",
+        "Rillaboom"
+      ],
+      "current": 15.6,
+      "previous": 9.2,
+      "liftCurrent": 1.42,
+      "liftPrevious": 1.51
     },
     {
       "core": [
         "Arcanine",
         "Raichu"
       ],
-      "current": 7.7,
-      "previous": 2.3
+      "current": 8.7,
+      "previous": 2.5,
+      "liftCurrent": 2.62,
+      "liftPrevious": 3.11
     },
     {
       "core": [
         "Gholdengo",
         "Salamence"
       ],
-      "current": 12.5,
-      "previous": 7.2
+      "current": 13.4,
+      "previous": 8,
+      "liftCurrent": 1.45,
+      "liftPrevious": 1.64
     },
     {
       "core": [
         "Gholdengo",
         "Sneasler"
       ],
-      "current": 11.7,
-      "previous": 6.7
+      "current": 12.3,
+      "previous": 7.4,
+      "liftCurrent": 1.03,
+      "liftPrevious": 1.17
     },
     {
       "core": [
         "Rillaboom",
         "Staraptor"
       ],
-      "current": 4.5,
-      "previous": 0.7
+      "current": 5.3,
+      "previous": 0.6,
+      "liftCurrent": 1.15,
+      "liftPrevious": 0.33
     },
     {
       "core": [
         "Gholdengo",
         "Staraptor"
       ],
-      "current": 4.2,
-      "previous": 0.5
+      "current": 5,
+      "previous": 0.4,
+      "liftCurrent": 2.39,
+      "liftPrevious": 0.93
     },
     {
       "core": [
         "Milotic",
         "Rillaboom"
       ],
-      "current": 7,
-      "previous": 3.3
-    },
-    {
-      "core": [
-        "Raichu",
-        "Sneasler"
-      ],
-      "current": 6.2,
-      "previous": 2.6
+      "current": 7.9,
+      "previous": 3.5,
+      "liftCurrent": 1.08,
+      "liftPrevious": 0.88
     },
     {
       "core": [
         "Arcanine",
         "Staraptor"
       ],
-      "current": 4.3,
-      "previous": 0.9
+      "current": 5,
+      "previous": 0.8,
+      "liftCurrent": 3.2,
+      "liftPrevious": 2.05
     },
     {
       "core": [
         "Raichu",
         "Staraptor"
       ],
-      "current": 4.2,
-      "previous": 0.9
+      "current": 4.9,
+      "previous": 0.8,
+      "liftCurrent": 3.52,
+      "liftPrevious": 3.36
     },
     {
       "core": [
-        "Arcanine",
-        "Salamence"
-      ],
-      "current": 11,
-      "previous": 7.8
-    },
-    {
-      "core": [
-        "Arcanine",
+        "Raichu",
         "Sneasler"
       ],
-      "current": 9.4,
-      "previous": 6.3
-    },
-    {
-      "core": [
-        "Milotic",
-        "Salamence"
-      ],
-      "current": 6.1,
-      "previous": 3.1
-    },
-    {
-      "core": [
-        "Garchomp",
-        "Rillaboom"
-      ],
-      "current": 7.4,
-      "previous": 4.5
+      "current": 6.7,
+      "previous": 3.1,
+      "liftCurrent": 0.84,
+      "liftPrevious": 0.89
     },
     {
       "core": [
         "Gholdengo",
         "Incineroar"
       ],
-      "current": 8.1,
-      "previous": 5.3
+      "current": 8.8,
+      "previous": 5.3,
+      "liftCurrent": 1.04,
+      "liftPrevious": 1.18
     },
     {
       "core": [
-        "Rillaboom",
-        "Volcarona"
+        "Gholdengo",
+        "Sylveon"
       ],
-      "current": 5.8,
-      "previous": 3
+      "current": 4.4,
+      "previous": 0.9,
+      "liftCurrent": 1.45,
+      "liftPrevious": 0.74
+    },
+    {
+      "core": [
+        "Staraptor",
+        "Sylveon"
+      ],
+      "current": 4.2,
+      "previous": 0.8,
+      "liftCurrent": 4.39,
+      "liftPrevious": 2.45
+    },
+    {
+      "core": [
+        "Raichu",
+        "Sylveon"
+      ],
+      "current": 5.1,
+      "previous": 1.7,
+      "liftCurrent": 2.51,
+      "liftPrevious": 2.53
+    },
+    {
+      "core": [
+        "Gengar",
+        "Rillaboom"
+      ],
+      "current": 4.6,
+      "previous": 1.2,
+      "liftCurrent": 1.49,
+      "liftPrevious": 1.26
+    },
+    {
+      "core": [
+        "Arcanine",
+        "Sylveon"
+      ],
+      "current": 5.4,
+      "previous": 2.1,
+      "liftCurrent": 2.37,
+      "liftPrevious": 1.9
+    }
+  ],
+  "setChanges": [
+    {
+      "species": "Milotic",
+      "item": null,
+      "ability": null,
+      "nature": {
+        "from": "Modest",
+        "to": "Calm"
+      }
+    },
+    {
+      "species": "Gengar",
+      "item": null,
+      "ability": null,
+      "nature": {
+        "from": "Timid",
+        "to": "Modest"
+      }
     }
   ]
 } } as const;
