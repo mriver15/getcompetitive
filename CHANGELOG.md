@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`infer_set`** — reverse constraint solving, the scouting feature: the player
+  reports what they saw ("it outsped my Jolly Salamence", "Close Combat did 71%
+  to my Rillaboom", "it took 80% from Flare Blitz") and the engine narrows which
+  set the opponent could be running, applying the same exact level-50 Speed math
+  and damage rolls the forward tools use, backwards. Every observation reports
+  how many candidates it eliminated, survivors are ranked by how far they are
+  from the set the meta actually plays, and impossible observations empty the
+  list cleanly rather than guessing. On the smoke scenario the engine recovers
+  the real meta set — Adamant Grassy Seed — as its most likely survivor.
+- **`optimize_team`** — constraint-based team completion: fill one or two open
+  slots against "cover these types" and "answer these threats" (defaulted to
+  the team's real coverage gaps and the meta's top five). Species and pairs are
+  scored on the typing they add, with measured usage as a preference; Species
+  Clause and roster legality hold by construction, and every recommendation
+  carries its reasons.
+
 ## [4.4.0] - 2026-09-18
 
 ### Added

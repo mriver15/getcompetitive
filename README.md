@@ -17,7 +17,7 @@ Smogon-tier and archetype surface that used to sit alongside it is gone.
 
 ## What it provides
 
-- **28 tools** across six domains: data, team analysis, team workflows (paste in, diagnose, prepare matchups, learn from replays), meta (usage-derived), battle mechanics, and official regulation sets
+- **30 tools** across six domains: data, team analysis, team workflows (paste in, diagnose, prepare matchups, learn from replays, scout sets, fill slots), meta (usage-derived), battle mechanics, and official regulation sets
 - **Six workflow prompts** — `/team-doctor`, `/matchup-prep`, `/build-around`, `/tournament-prep`, `/learn-my-team`, `/meta-report` — server-provided templates that chain the deterministic tools, so compound workflows stay discoverable without a 40-tool surface
 - **Structured, agent-first definitions** — every tool declares MCP annotations and an output schema, returns `structuredContent` alongside JSON text, and documents all of its parameters; the deterministic half of the [TDQS](https://tdqs.dev) checklist is linted in CI
 - Full **Pokémon Showdown** dataset — species, alternate forms, stats, moves, items, abilities, natures, learnsets, types
@@ -58,6 +58,8 @@ Built on [`@pkmn/dex`](https://github.com/pkmn/EPOKe) (Showdown data) and
 | `diagnose_team` | "Fix my team": weaknesses with evidence, then concrete spread, move, item and member changes, each backed by exact math or usage data |
 | `prepare_matchup` | "Prepare me": their likely sets by usage, speed races with margins, key damage rolls, bring-four, leads, and win/loss conditions |
 | `analyze_replay` | Post-match read of a battle log: teams, KOs with causes, observed Speed order, damage percentages, and a type-coverage read |
+| `infer_set` | Reverse constraint solving: battle observations (who moved first, damage dealt/taken) narrow the opponent's likely set, ranked against the meta |
+| `optimize_team` | Fill open team slots against constraints — cover these types, answer these threats — with reasons for every recommendation |
 
 ### Meta (usage-derived)
 | Tool | Purpose |
