@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **The release workflow mirrors npm to GitHub.** Every tag now publishes the
+  npm package and creates the GitHub Release with the matching CHANGELOG
+  section as its body — the two "latest" pointers can no longer drift apart,
+  and a version without a changelog section fails the run instead of shipping
+  an unlabeled release.
+
 ## [6.2.0] - 2026-09-19
 
 ### Added
