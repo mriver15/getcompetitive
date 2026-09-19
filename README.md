@@ -113,7 +113,21 @@ PORT=8080 node dist/http-server.js
 
 Connect a client with the URL `http://<host>:<port>/mcp`. TLS, auth and rate
 limiting are the deployer's concern: the server itself remains a pure offline
-read.
+read. Browsing `http://<host>:<port>/` serves the **evidence app** — the model
+converses, the page displays the proof (bring-four, threat matrix, key rolls).
+
+### Hosted MCP
+
+`dist/worker.js` is a serverless fetch handler over the same surface — deploy
+it and clients need nothing but a URL:
+
+```bash
+npx wrangler deploy            # with wrangler.toml
+# connect clients to https://<your-worker>.workers.dev/mcp
+```
+
+The worker is stateless per request, so it scales without session storage;
+TLS and rate limiting come from the platform.
 
 ## Workflow prompts
 

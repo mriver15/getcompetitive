@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Hosted MCP, ready to deploy.** `dist/worker.js` is a serverless fetch
+  handler over the full surface (`wrangler.toml` included): stateless per
+  request, no session storage, so hosting is `npx wrangler deploy` and
+  clients connect to a URL. Verified in the smoke suite with a raw fetch
+  round-trip — initialize, tools/list (8), and a tool call over SSE.
+- **The evidence app.** The HTTP entrypoint now serves a browser page at `/`
+  that drives the same MCP endpoint: paste a team and an opponent, and it
+  renders the bring-four with alternates, scored leads, win/loss conditions,
+  key damage rolls, the battle-math threat matrix, and the meta top — the
+  model converses, the page displays the proof. Client-side MCP Apps remain
+  blocked on the pinned SDK having no app content types; this page needs no
+  client support at all.
+- **Learnset memoization** — the evolution-line move lookup is cached per
+  species, which the role detector and analysis tools share.
+
 ## [6.1.0] - 2026-09-19
 
 ### Added

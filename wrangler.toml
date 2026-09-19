@@ -1,0 +1,10 @@
+name = "getcompetitive"
+main = "dist/worker.js"
+compatibility_date = "2026-09-19"
+
+[observability]
+enabled = true
+
+[env.production]
+# Deploy: npx wrangler deploy
+# Then point any MCP client at https://<your-worker>.workers.dev/mcp

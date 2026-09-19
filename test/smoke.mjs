@@ -578,6 +578,8 @@ if (!/- Fake Out/.test(paste)) {
       }
     }
     check('HTTP entrypoint comes up', up);
+    const app = await fetch('http://127.0.0.1:3207/');
+    check('HTTP entrypoint serves the evidence app', app.status === 200 && (await app.text()).includes('THREAT MATRIX'));
     const httpClient = new Client({ name: 'smoke-http', version: '0' });
     await httpClient.connect(new StreamableHTTPClientTransport(new URL('http://127.0.0.1:3207/mcp')));
     const httpTools = (await httpClient.listTools()).tools;
@@ -588,6 +590,33 @@ if (!/- Fake Out/.test(paste)) {
   } finally {
     child.kill();
   }
+}
+
+// P3: the serverless entrypoint — the hosted-MCP artifact — answers the same surface.
+{
+  const check = (label, ok) => {
+    console.log(`=== ${label} => ${ok} ===`);
+    if (!ok) failed++;
+  };
+  const worker = (await import('../dist/worker.js')).default;
+  const post = (body) =>
+    new Request('http://host/mcp', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream' },
+      body: JSON.stringify(body),
+    });
+  const parse = async (res) => {
+    const text = await res.text();
+    const data = text.split('\n').filter((l) => l.startsWith('data: ')).map((l) => l.slice(6)).join('\n');
+    return JSON.parse(data || text);
+  };
+  const init = await worker.fetch(post({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'smoke-worker', version: '0' } } }));
+  const listed = await parse(await worker.fetch(post({ jsonrpc: '2.0', id: 2, method: 'tools/list' })));
+  const run = await parse(await worker.fetch(post({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'lookup', arguments: { mode: 'species', species: 'Garchomp' } } })));
+  check(
+    'serverless entrypoint serves the same 8 tools',
+    init.status === 200 && listed.result.tools.length === 8 && JSON.parse(run.result.content[0].text).types.join('/') === 'Dragon/Ground',
+  );
 }
 
 console.log(failed === 0 ? '\nALL PASS' : `\n${failed} FAILURES`);

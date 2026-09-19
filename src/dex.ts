@@ -230,7 +230,13 @@ export function typeToObj(t: DexType) {
  * NOT extend the line: Johto Sneasel is Hisuian Sneasel's base species, but
  * Surf arrives on Hisuian Sneasel's path to Sneasler by no route.
  */
+const learnsetCache = new Map<string, Set<string>>();
+
 export async function learnableMoveIds(dex: ModdedDex, species: Species): Promise<Set<string>> {
+  const cacheKey = toID(species.name);
+  const cached = learnsetCache.get(cacheKey);
+  if (cached) return cached;
+
   const line: Species[] = [];
   const seen = new Set<string>();
   let current: Species | undefined = species;
@@ -251,6 +257,7 @@ export async function learnableMoveIds(dex: ModdedDex, species: Species): Promis
     const learnset = await dex.learnsets.getByID(toID(link.name));
     for (const id of Object.keys(learnset.learnset ?? {})) ids.add(id);
   }
+  learnsetCache.set(cacheKey, ids);
   return ids;
 }
 
