@@ -93,5 +93,38 @@ const dex = getChampionsDex();
   );
 }
 
+// --- MatchupEvaluator: deterministic classifications, pinned as goldens ---
+{
+  const { evaluateMatchup } = await import('../dist/evaluator.js');
+  const evalCase = async (label, us, them, want) => {
+    const r = evaluateMatchup(us, them);
+    check(`${label} classifies ${want}`, r.answerClass === want);
+  };
+  await evalCase(
+    'Garchomp into Sneasler',
+    { species: 'Garchomp', item: 'Life Orb', nature: 'Jolly', evs: { atk: 252, spe: 252 }, moves: ['Earthquake', 'Dragon Claw', 'Rock Slide'] },
+    { species: 'Sneasler', item: 'Grassy Seed', nature: 'Adamant', evs: { atk: 252, spe: 252 }, moves: ['Close Combat', 'Dire Claw', 'Gunk Shot', 'Protect'] },
+    'HARD_ANSWER',
+  );
+  await evalCase(
+    'Incineroar into Rillaboom',
+    { species: 'Incineroar', item: 'Sitrus Berry', nature: 'Careful', championsPoints: { hp: 32, def: 14, spd: 20 }, moves: ['Fake Out', 'Flare Blitz', 'Knock Off'] },
+    { species: 'Rillaboom', item: 'Miracle Seed', nature: 'Adamant', championsPoints: { hp: 32, atk: 32 }, moves: ['Fake Out', 'Grassy Glide', 'Wood Hammer'] },
+    'SOFT_ANSWER',
+  );
+  await evalCase(
+    'Pelipper into Garchomp',
+    { species: 'Pelipper', item: 'Damp Rock', nature: 'Bold', evs: { hp: 252, def: 252 }, moves: ['Scald', 'Hurricane'] },
+    { species: 'Garchomp', item: 'Life Orb', nature: 'Jolly', evs: { atk: 252, spe: 252 }, moves: ['Earthquake', 'Dragon Claw', 'Rock Slide'] },
+    'UNFAVORABLE',
+  );
+  await evalCase(
+    'Sneasler into Gholdengo is blocked, not unknown',
+    { species: 'Sneasler', item: 'Grassy Seed', nature: 'Adamant', evs: { atk: 252, spe: 252 }, moves: ['Close Combat', 'Dire Claw', 'Gunk Shot', 'Protect'] },
+    { species: 'Gholdengo', item: 'Life Orb', nature: 'Modest', evs: { spa: 252, spe: 252 }, moves: ['Make It Rain', 'Shadow Ball', 'Nasty Plot'] },
+    'UNFAVORABLE',
+  );
+}
+
 console.log(failed === 0 ? '\nALL PASS' : `\n${failed} FAILURES`);
 process.exit(failed === 0 ? 0 : 1);

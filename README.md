@@ -48,15 +48,15 @@ Built on [`@pkmn/dex`](https://github.com/pkmn/EPOKe) (Showdown data) and
 ### Team analysis
 | Tool | Purpose |
 | --- | --- |
-| `analyze_team` | Team synergy: stacked defensive weaknesses, offensive coverage gaps, speed placement, a heuristic score, and — with a regulation — coverage against the meta's real sets |
+| `analyze_team` | Team synergy: stacked defensive weaknesses, offensive coverage gaps, speed placement, a heuristic score, and — with a regulation — coverage against the meta's real sets, with battle-math `answerClass` verdicts from the shared MatchupEvaluator |
 
 ### Team workflows
 | Tool | Purpose |
 | --- | --- |
 | `parse_team` | Turn a Showdown/Pokepaste block (or a `species @ item \| ability \| nature \| EVs \| moves` one-liner) into the canonical team every tool takes; unknown names become warnings, not errors |
 | `format_team` | Render a canonical team back into paste text, round-tripping through `parse_team` |
-| `diagnose_team` | "Fix my team": weaknesses with evidence, then concrete spread, move, item and member changes, each backed by exact math or usage data |
-| `prepare_matchup` | "Prepare me": their likely sets by usage, speed races with margins, key damage rolls, bring-four, leads, and win/loss conditions |
+| `diagnose_team` | "Fix my team": weaknesses with evidence — battle-math matchup verdicts included when sets are known — then concrete spread, move, item and member changes, each backed by exact math or usage data |
+| `prepare_matchup` | "Prepare me": their likely sets by usage, speed races with margins, key damage rolls, an exhaustively scored bring-four with alternates, scored lead pairings, and win/loss conditions |
 | `analyze_replay` | Post-match read of a battle log: teams, KOs with causes, observed Speed order, damage percentages, and a type-coverage read |
 | `infer_set` | Reverse constraint solving: battle observations (who moved first, damage dealt/taken) narrow the opponent's likely set, ranked against the meta |
 | `optimize_team` | Fill open team slots against constraints — cover these types, answer these threats — with reasons for every recommendation |
