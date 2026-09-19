@@ -8,10 +8,11 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
       # OIDC for npm trusted publishing — no long-lived credential. The npm CLI
       # exchanges this token for a short-lived publish credential, and npm
       # generates provenance attestations automatically for public releases.
+      # `contents: write` lets the release step create the GitHub Release.
+      contents: write
       id-token: write
     steps:
       - uses: actions/checkout@v4
@@ -27,3 +28,19 @@ jobs:
       # The trusted publisher must allow `npm publish`; a configuration limited
       # to `npm stage publish` fails here with E_STAGE_REQUIRED.
       - run: npm publish
+      # Mirror the release on GitHub with the matching CHANGELOG section, so
+      # npm and the GitHub "Latest" release can never drift apart again.
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          NOTES="$(awk -v v="$VERSION" '
+            /^## \[/ { if (seen) exit; if (index($0, "## [" v "] -") == 1) { seen = 1; next } }
+            seen { print }
+          ' CHANGELOG.md | sed -e '1{/^$/d;}' -e '${/^$/d;}')"
+          if [ -z "$NOTES" ]; then
+            echo "::error::No CHANGELOG section for $VERSION"
+            exit 1
+          fi
+          gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes "$NOTES"
