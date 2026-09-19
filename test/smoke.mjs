@@ -161,6 +161,8 @@ const calls = [
     ],
     opponent: ['Sneasler', 'Salamence-Mega', 'Gholdengo', 'Farigiraf', 'Kingambit', 'Rillaboom'],
   }],
+  ['get_sprites', { species: ['Garchomp', 'Rotom-Wash', 'Indeedee', 'Salamence-Mega', 'NotAMon', 'Annihilape'] }],
+  ['get_sprites', { species: ['Garchomp', 'Basculegion'], size: 'icon' }],
   ['analyze_team', {
     team: [
       { species: 'Garchomp', moves: ['Earthquake'] },
@@ -257,6 +259,31 @@ for (const threat of threats) {
   }
 }
 console.log(`=== ${threats.length} generated sets all pass check_legality ===`);
+
+// get_sprites acceptance: batch order, partial failure, dex numbers, artwork vs
+// icon, and purity (deterministic table lookup — no runtime network anywhere).
+{
+  const check = (label, ok) => {
+    console.log(`=== ${label} => ${ok} ===`);
+    if (!ok) failed++;
+  };
+  const batch = await client.callTool({
+    name: 'get_sprites',
+    arguments: { species: ['Garchomp', 'Rotom-Wash', 'Indeedee', 'Salamence-Mega', 'NotAMon', 'Annihilape'] },
+  });
+  const { sprites, unresolved, note } = batch.structuredContent;
+  check('get_sprites resolves a batched team in order', !batch.isError && sprites.map((s) => s.species).join(',') === 'Garchomp,Rotom-Wash,Indeedee,Salamence-Mega,Annihilape');
+  check('get_sprites reports partial failure instead of failing the batch', unresolved?.length === 1 && unresolved[0] === 'NotAMon');
+  check('get_sprites carries National Dex numbers', sprites.every((s, i) => s.dexNumber === [445, 479, 876, 373, 979][i]));
+  check('get_sprites artwork URLs point at official artwork', sprites.every((s) => s.url.includes('/other/official-artwork/') && s.url.endsWith('.png')));
+  const icon = await client.callTool({ name: 'get_sprites', arguments: { species: ['Garchomp'], size: 'icon' } });
+  check('get_sprites icon URLs point at the game sprite', icon.structuredContent.sprites[0].url.endsWith('/sprites/pokemon/445.png'));
+  const again = await client.callTool({ name: 'get_sprites', arguments: { species: ['Garchomp'] } });
+  check(
+    'get_sprites is deterministic and pure (committed table, no runtime I/O)',
+    JSON.stringify(again.structuredContent) === JSON.stringify({ sprites: [sprites[0]], note }),
+  );
+}
 
 // The paste is the artefact a player copies into the game, so it must be written
 // in Champions stat points (0-32 each, 66 total) — never the 0-252 calc scale.

@@ -17,7 +17,7 @@ Smogon-tier and archetype surface that used to sit alongside it is gone.
 
 ## What it provides
 
-- **25 tools** across six domains: data, team analysis, team workflows (paste in, diagnose, prepare matchups), meta (usage-derived), battle mechanics, and official regulation sets
+- **26 tools** across six domains: data, team analysis, team workflows (paste in, diagnose, prepare matchups), meta (usage-derived), battle mechanics, and official regulation sets
 - **Structured, agent-first definitions** — every tool declares MCP annotations and an output schema, returns `structuredContent` alongside JSON text, and documents all of its parameters; the deterministic half of the [TDQS](https://tdqs.dev) checklist is linted in CI
 - Full **Pokémon Showdown** dataset — species, alternate forms, stats, moves, items, abilities, natures, learnsets, types
 - **Battle math** from Smogon's calculator — stat calculation and full damage calculation (weather, terrain, boosts, items)
@@ -34,6 +34,7 @@ Built on [`@pkmn/dex`](https://github.com/pkmn/EPOKe) (Showdown data) and
 | --- | --- |
 | `get_pokemon` | Types, base stats, BST, abilities, forms, weight, gender, evolutions |
 | `list_forms` | All forms of a species (alternate, cosmetic, battle-only) |
+| `get_sprites` | Sprite URLs for a whole team in one call (artwork or icon), from a committed PokéAPI id table — URLs only, the server does no network I/O |
 | `search_dex` | Fuzzy name search across species / moves / items / abilities / natures |
 | `get_move` | Type, category, power, accuracy, PP, priority, target, secondary effects |
 | `get_item` | Effect, flags, mega stone, Z-move, Fling, boosts |
