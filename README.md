@@ -30,7 +30,7 @@ Built on [`@pkmn/dex`](https://github.com/pkmn/EPOKe) (Showdown data) and
 
 ## Tools
 
-Eight compound tools; each dispatches on a `mode` field where the name alone is ambiguous.
+Eight compound tools; each dispatches on a `mode` field where the name alone is ambiguous, and each accepts `detail: "compact" | "evidence" | "debug"` — compact by default, so responses carry conclusions and the numbers needed to reason, and you ask for ranges, benchmarks and provenance only when the reasoning needs them.
 
 | Tool | Purpose | Modes |
 | --- | --- | --- |
@@ -144,6 +144,7 @@ npm test   # builds and drives every tool over real MCP stdio, plus the HTTP ent
 - `calculate` `{ "mode": "damage", "attacker": { "species": "Garchomp", "level": 50, "nature": "Jolly", "evs": { "atk": 252, "spe": 252 }, "item": "Choice Band" }, "defender": { "species": "Corviknight", "level": 50, "nature": "Impish", "evs": { "hp": 252, "def": 252 } }, "move": "Dragon Claw" }`
 - `team_io` `{ "mode": "legality", "regulation": "m-c", "team": [ { "species": "Garchomp", "item": "Choice Band" } ] }`
 - `analyze_team` `{ "mode": "synergy", "team": [ { "species": "Garchomp", "moves": ["Earthquake", "Dragon Claw", "Rock Slide"] } ], "regulation": "m-c" }`
+- `analyze_team` `{ "mode": "synergy", "team": [...], "regulation": "m-c", "detail": "evidence" }` → adds the per-type tables; `"debug"` adds the `engine` provenance block
 - `team_io` `{ "mode": "parse", "text": "Garchomp @ Choice Scarf | Rough Skin | Jolly | 252 Atk / 252 Spe | Earthquake / Dragon Claw" }`
 - `analyze_team` `{ "mode": "diagnose", "team": [ { "species": "Garchomp", "nature": "Jolly", "evs": { "atk": 252, "spe": 252 } } ], "goal": "improve against the current meta" }`
 - `prepare_matchup` `{ "team": [ { "species": "Garchomp" } ], "opponent": ["Sneasler", "Salamence-Mega", "Gholdengo"] }`
