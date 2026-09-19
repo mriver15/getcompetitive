@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Six server-provided workflow prompts** — `/team-doctor`, `/matchup-prep`,
+  `/build-around`, `/tournament-prep`, `/learn-my-team`, `/meta-report` — that
+  chain the deterministic tools into compound workflows without adding a tool
+  per workflow. Each is a static template following one doctrine: the model
+  explains, getcompetitive proves, so every number in an answer must come from
+  a tool's output.
+- **A Streamable HTTP entrypoint** (`node dist/http-server.js`), the
+  remote-endpoint mode: the same tools and prompts over HTTP, stateless per the
+  SDK's contract (one fresh transport per request, no session state), so it
+  sits behind a load balancer unchanged. The stdio and HTTP entrypoints build
+  from one shared `buildServer()`, so the two surfaces cannot drift. Deployment
+  (TLS, auth, rate limits) is deliberately the deployer's call.
+
 ## [4.2.0] - 2026-09-18
 
 ### Added

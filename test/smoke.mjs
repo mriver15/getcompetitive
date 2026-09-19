@@ -1,5 +1,7 @@
+import { spawn } from 'node:child_process';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
 const client = new Client({ name: 'smoke', version: '0.0.0' });
 const transport = new StdioClientTransport({
@@ -298,6 +300,60 @@ if (!evLine || evPoints.some((n) => n > 32) || evPoints.reduce((a, b) => a + b, 
 if (!/- Fake Out/.test(paste)) {
   console.log('=== paste is missing its move lines ===');
   failed++;
+}
+
+// P1: server-provided workflow prompts, and the same surface over the HTTP
+// entrypoint (the remote-endpoint mode) — a real client against a spawned server.
+{
+  const check = (label, ok) => {
+    console.log(`=== ${label} => ${ok} ===`);
+    if (!ok) failed++;
+  };
+  const promptList = (await client.listPrompts()).prompts;
+  check(
+    'six workflow prompts are discoverable',
+    promptList.length === 6 &&
+      ['team-doctor', 'matchup-prep', 'build-around', 'tournament-prep', 'learn-my-team', 'meta-report'].every((n) =>
+        promptList.some((p) => p.name === n),
+      ),
+  );
+  const got = await client.getPrompt({ name: 'matchup-prep', arguments: { opponent: 'Sneasler', regulation: 'm-c' } });
+  const ptext = got.messages[0].content.text;
+  check('matchup-prep chains the real tools', ['prepare_matchup', 'parse_team', 'Sneasler'].every((t) => ptext.includes(t)));
+
+  const child = spawn(process.execPath, ['dist/http-server.js'], {
+    cwd: process.cwd(),
+    env: { ...process.env, PORT: '3207' },
+    stdio: 'ignore',
+  });
+  try {
+    let up = false;
+    for (let i = 0; i < 40 && !up; i++) {
+      try {
+        const r = await fetch('http://127.0.0.1:3207/mcp', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream' },
+          body: JSON.stringify({
+            jsonrpc: '2.0', id: 1, method: 'initialize',
+            params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'smoke', version: '0' } },
+          }),
+        });
+        up = r.ok;
+      } catch {
+        await new Promise((r2) => setTimeout(r2, 200));
+      }
+    }
+    check('HTTP entrypoint comes up', up);
+    const httpClient = new Client({ name: 'smoke-http', version: '0' });
+    await httpClient.connect(new StreamableHTTPClientTransport(new URL('http://127.0.0.1:3207/mcp')));
+    const httpTools = (await httpClient.listTools()).tools;
+    const sprite = await httpClient.callTool({ name: 'get_sprites', arguments: { species: ['Garchomp'], size: 'icon' } });
+    check('HTTP entrypoint serves the same 26 tools', httpTools.length === 26);
+    check('HTTP entrypoint answers a tool call', sprite.structuredContent.sprites[0].url.endsWith('445.png'));
+    await httpClient.close();
+  } finally {
+    child.kill();
+  }
 }
 
 console.log(failed === 0 ? '\nALL PASS' : `\n${failed} FAILURES`);
