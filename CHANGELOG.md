@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.5.1] - 2026-09-19
+
 ### Added
 
 - **ChampionsDex — the verified game-model foundation.** Every gameplay tool
