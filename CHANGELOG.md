@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **The shared MatchupEvaluator** — one reusable definition of what an actual
+  competitive answer is, replacing "super-effective move = answer" wherever
+  sets are known. It runs the real math both directions (each side's hardest
+  hit and damage range, level-50 Speed with priority, a conservative turn
+  simulation) and classifies the matchup: `HARD_ANSWER`, `SOFT_ANSWER`,
+  `REVENGE` (wins only on initiative, cannot switch in), `SPEED_DEPENDENT`,
+  `TRADE`, `UNFAVORABLE`, `UNKNOWN` — with the deciding fact quoted in every
+  verdict. Deterministic by contract: our side always simulates its minimum
+  roll against their maximum, so a positive class is a worst-case guarantee.
+- **Damage-aware analysis.** `analyze_team`'s `threatCoverage` rows now carry
+  `answerClass` and `answerBy` when members supply moves — the evaluator has
+  already corrected real cases, e.g. a type-chart 2\u00d7 hit that the exchange
+  math rightly calls `UNFAVORABLE`. `diagnose_team` problems agree with the
+  same engine: unanswered threats are stated from battle math, and matchups
+  that ride on initiative or rolls get their own problem with the reason.
+- **Exhaustive bring-four.** `prepare_matchup` now scores every combination of
+  four (per-member type scores plus how much of their team the four cover
+  together, and a preserve bonus for sole-answer members) instead of a greedy
+  top-four, and reports the two runner-up combinations plus the score so the
+  cost of the pick is visible. Lead pairings are scored (Fake Out, attacker
+  Speed, best hit into their team) rather than defaulting to the fastest.
+
 ## [4.5.1] - 2026-09-19
 
 ### Added

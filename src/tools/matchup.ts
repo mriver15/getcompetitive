@@ -13,11 +13,86 @@ import { REGULATION_SETS, getRegulationSet, setStatus } from '../regulations.js'
 import { getThreatList, findThreat, type Threat } from '../threats.js';
 import { ok, wrap, requireExists, READ_ONLY_ANNOTATIONS } from '../result.js';
 import { parsedSetSchema, resolveMembers, type ParsedSet, type ResolvedMember } from './team.js';
-import { planBringFour } from './analyze.js';
 import type { ModdedDex } from '@pkmn/dex';
 
 const LEAD_MOVES = ['fakeout', 'tailwind', 'trickroom', 'helpinghand', 'followme', 'ragepowder', 'wideguard'];
 const toKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+/** All k-combinations of a list, in order. */
+function combinations<T>(items: T[], k: number): T[][] {
+  const out: T[][] = [];
+  const walk = (start: number, acc: T[]) => {
+    if (acc.length === k) {
+      out.push(acc);
+      return;
+    }
+    for (let i = start; i < items.length; i++) walk(i + 1, [...acc, items[i]]);
+  };
+  walk(0, []);
+  return out;
+}
+
+/**
+ * Bring-four as an exhaustive search over every combination of four, instead
+ * of a greedy top-four pick: the same per-member type score as
+ * `analyze_team`'s planner, plus a bonus for how many opponent species the
+ * combination covers as a unit and a preserve bonus for members that are the
+ * only answer to a threat. Returns the best combination, the two runners-up,
+ * and the members left behind.
+ */
+function exhaustiveBringFour(
+  members: { species: string; types: string[]; moveTypes: string[] }[],
+  opponent: { name: string; types: string[] }[],
+  preserve: Set<string>,
+) {
+  const scored = members.map((m) => {
+    const attackTypes = new Set([...m.types, ...m.moveTypes]);
+    let offensive = 0;
+    let defensive = 0;
+    for (const o of opponent) {
+      if ([...attackTypes].some((t) => typeEffectiveness(t, o.types, 9) > 1)) offensive++;
+      if (o.types.some((t) => typeEffectiveness(t, m.types, 9) > 1)) defensive++;
+    }
+    return { species: m.species, types: m.types, offensive, defensive, score: offensive - defensive };
+  });
+
+  const evaluated = combinations(scored, Math.min(4, scored.length))
+    .map((picks) => {
+      const baseScore = picks.reduce((a, p) => a + p.score, 0);
+      const unionTypes = new Set(picks.flatMap((p) => p.types));
+      const coverageBonus = opponent.filter((o) => [...unionTypes].some((t) => typeEffectiveness(t, o.types, 9) > 1)).length;
+      const preserveBonus = picks.filter((p) => preserve.has(p.species)).length * 2;
+      return { picks, total: baseScore + coverageBonus * 2 + preserveBonus };
+    })
+    .sort((a, b) => b.total - a.total);
+
+  const report = ({ species, offensive, defensive, score }: (typeof scored)[number]) => ({
+    species,
+    offensive,
+    defensive,
+    score,
+  });
+  const top = evaluated[0]?.picks ?? scored;
+  const atRiskTypes = TYPES18.filter((t) => {
+    let weak = 0;
+    let covered = 0;
+    for (const p of top) {
+      const eff = typeEffectiveness(t, p.types, 9);
+      if (eff > 1) weak++;
+      else if (eff < 1) covered++;
+    }
+    return weak >= 2 && covered === 0;
+  });
+
+  return {
+    opponent: opponent.map((o) => o.name),
+    picks: top.map(report),
+    leftBehind: scored.filter((s) => !top.includes(s)).map(report),
+    atRiskTypes,
+    alternates: evaluated.slice(1, 3).map((e) => e.picks.map(report)),
+    score: Number((evaluated[0]?.total ?? 0).toFixed(1)),
+  };
+}
 
 interface OpponentMember {
   species: string;
@@ -132,6 +207,10 @@ export function registerMatchupTool(server: McpServer) {
               )
               .describe('The members not recommended.'),
             atRiskTypes: z.array(z.string()).describe('Types the recommended four leave stacked and uncovered.'),
+            alternates: z
+              .array(z.array(z.object({ species: z.string().describe('Member.'), offensive: z.number().int(), defensive: z.number().int(), score: z.number().int() })))
+              .describe('The two runner-up combinations, best first, so the cost of the top pick is visible.'),
+            score: z.number().describe('The top combination\u2019s total: per-member type scores plus coverage and preserve bonuses; higher is better, absolute value has no external meaning.'),
             note: z.string().describe('What the pick is scored on and what it cannot see.'),
           })
           .describe('Which four of your six to bring, scored on the types team preview shows.'),
@@ -339,37 +418,7 @@ export function registerMatchupTool(server: McpServer) {
         }
       }
 
-      // --- Bring four, leads, conditions ---
-      const bringFour = planBringFour(
-        members.map((m) => ({ species: m.species, types: m.types, moveTypes: m.moveTypes })),
-        opponents.map((o) => ({ name: o.species, types: o.types })),
-      );
-
-      const ourSupports = members.filter((m) => m.moves.some((mv) => LEAD_MOVES.includes(toKey(mv))));
-      const ourAttackers = [...members].sort((a, b) => b.speed - a.speed).filter((m) => !ourSupports.includes(m)).slice(0, 2);
-      const ourPairs = [];
-      for (const s of ourSupports.slice(0, 3)) {
-        for (const a of ourAttackers.slice(0, 1)) {
-          ourPairs.push({
-            support: s.species,
-            attacker: a.species,
-            why: `${s.species} opens with ${s.moves.find((mv) => LEAD_MOVES.includes(toKey(mv)))} to buy ${a.species} (${a.speed} Speed) a free turn.`,
-          });
-        }
-      }
-      const theirSupports = opponents.filter((m) => m.moves.some((mv) => LEAD_MOVES.includes(toKey(mv))));
-      const theirAttackers = [...opponents].sort((a, b) => b.speed - a.speed).filter((m) => !theirSupports.includes(m)).slice(0, 2);
-      const theirPairs = [];
-      for (const s of theirSupports.slice(0, 3)) {
-        for (const a of theirAttackers.slice(0, 1)) {
-          theirPairs.push({
-            support: s.species,
-            attacker: a.species,
-            why: `Watch for ${s.species} opening with ${s.moves.find((mv) => LEAD_MOVES.includes(toKey(mv)))} into ${a.species}.`,
-          });
-        }
-      }
-
+      // --- Which four to bring: exhaustively scored, not greedy ---
       const threatAnswers = opponents.map((o) => {
         let best = 0;
         let by: string | undefined;
@@ -384,10 +433,49 @@ export function registerMatchupTool(server: McpServer) {
         }
         return { species: o.species, best, solvers, by };
       });
+      const preserve = new Set<string>();
+      for (const a of threatAnswers) {
+        if (a.best >= 2 && a.solvers.length === 1) preserve.add(a.solvers[0]);
+      }
+      const bringFour = exhaustiveBringFour(
+        members.map((m) => ({ species: m.species, types: m.types, moveTypes: m.moveTypes })),
+        opponents.map((o) => ({ name: o.species, types: o.types })),
+        preserve,
+      );
+
+      // --- Leads: every support x attacker pair scored, not just the fastest ---
+      const ourSupports = members.filter((m) => m.moves.some((mv) => LEAD_MOVES.includes(toKey(mv))));
+      const ourAttackers = [...members].sort((a, b) => b.speed - a.speed).filter((m) => !ourSupports.includes(m)).slice(0, 3);
+      const leadPairs = [];
+      for (const s of ourSupports.slice(0, 3)) {
+        for (const a of ourAttackers) {
+          const supportMove = s.moves.find((mv) => LEAD_MOVES.includes(toKey(mv))) ?? '';
+          const bestEff = Math.max(...opponents.map((o) => Math.max(...[...new Set([...a.types, ...a.moveTypes])].map((t) => typeEffectiveness(t, o.types, 9)))));
+          leadPairs.push({
+            support: s.species,
+            attacker: a.species,
+            why: `${s.species} opens with ${supportMove} to buy ${a.species} (${a.speed} Speed, ${bestEff}\u00d7 best hit into their team) a free turn.`,
+            score: Number(((toKey(supportMove) === 'fakeout' ? 2 : 1) + a.speed / 200 + bestEff).toFixed(2)),
+          });
+        }
+      }
+      leadPairs.sort((x, y) => y.score - x.score);
+      const ourPairs = leadPairs.slice(0, 3).map(({ support, attacker, why }) => ({ support, attacker, why }));
+      const theirSupports = opponents.filter((m) => m.moves.some((mv) => LEAD_MOVES.includes(toKey(mv))));
+      const theirAttackers = [...opponents].sort((a, b) => b.speed - a.speed).filter((m) => !theirSupports.includes(m)).slice(0, 2);
+      const theirPairs = [];
+      for (const s of theirSupports.slice(0, 3)) {
+        for (const a of theirAttackers.slice(0, 1)) {
+          theirPairs.push({
+            support: s.species,
+            attacker: a.species,
+            why: `Watch for ${s.species} opening with ${s.moves.find((mv) => LEAD_MOVES.includes(toKey(mv)))} into ${a.species}.`,
+          });
+        }
+      }
 
       const winConditions: string[] = [];
       const lossConditions: string[] = [];
-      const preserve = new Set<string>();
       for (const a of threatAnswers.filter((t) => t.best >= 2).slice(0, 3)) {
         winConditions.push(`${a.by} answers ${a.species} (${a.best}\u00d7 from STAB or a supplied move).`);
         if (a.solvers.length === 1) preserve.add(a.solvers[0]);
@@ -428,7 +516,7 @@ export function registerMatchupTool(server: McpServer) {
         relevantDamageCalcs: calcs.slice(0, 4),
         recommendedBringFour: {
           ...bringFour,
-          note: 'Scored on type alone, which is what team preview gives you: ranked is closed teamlist, so the opponent\u2019s sets are unknown by design. `offensive` counts the opponent species a member hits super-effectively from STAB or a supplied move, `defensive` counts those that hit it back on their STAB. Speed, bulk, damage rolls and abilities are not modelled here \u2014 pair it with `relevantDamageCalcs`.',
+          note: 'Every combination of four is scored, not just a greedy top-four: per-member type scores (which is all team preview shows) plus a bonus for how much of their team the four cover together, and a preserve bonus for members that are the only answer to a threat. Speed, bulk, damage rolls and abilities are not modelled here \u2014 pair it with `relevantDamageCalcs`.',
         },
         possibleLeads: {
           pairs: ourPairs,

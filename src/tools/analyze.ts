@@ -10,6 +10,7 @@ import { getChampionsDex } from '../champions.js';
 import { getRegulationSet } from '../regulations.js';
 import { getThreatList } from '../threats.js';
 import { ok, wrap, requireExists, READ_ONLY_ANNOTATIONS } from '../result.js';
+import { evaluateMatchup, ANSWER_CLASS_RANK, type AnswerClass } from '../evaluator.js';
 import { evMap, championsPointsMap } from './schemas.js';
 
 /** One member's score against a known opponent; shared by `picks` and `leftBehind`. */
@@ -227,6 +228,13 @@ export function registerAnalyzeTools(server: McpServer) {
                 hitBy: z.string().optional().describe('The member providing that best hit; absent when nothing hits it super-effectively.'),
                 hitVia: z.string().optional().describe('The attacking type providing it; absent when nothing hits it super-effectively.'),
                 answered: z.boolean().describe('True when the team has a super-effective (\u22652x) hit on it.'),
+                answerClass: z
+                  .enum(['HARD_ANSWER', 'SOFT_ANSWER', 'REVENGE', 'SPEED_DEPENDENT', 'TRADE', 'UNFAVORABLE', 'UNKNOWN'])
+                  .optional()
+                  .describe(
+                    'The shared MatchupEvaluator\u2019s verdict from real damage ranges and Speed, when at least one member supplied moves: HARD_ANSWER and SOFT_ANSWER win the exchange, REVENGE wins only on initiative, SPEED_DEPENDENT and TRADE ride on order or rolls, UNFAVORABLE loses it. Absent when no member listed moves \u2014 the type-based fields above are all there is.',
+                  ),
+                answerBy: z.string().optional().describe('The member that earns the best `answerClass`; present with it.'),
               }),
             ).describe('One entry per threat in the regulation\u2019s list, most used first.'),
             unanswered: z.array(z.string()).describe('Threats with no super-effective hit from this team \u2014 the coverage holes to fix first.'),
@@ -402,6 +410,35 @@ export function registerAnalyzeTools(server: McpServer) {
             }
           }
           const multiplier = best?.multiplier ?? 0;
+          // Where a member supplied real moves, run the shared MatchupEvaluator:
+          // damage ranges and Speed decide what an answer actually is, instead
+          // of the type multiplier alone.
+          let answerClass: AnswerClass | undefined;
+          let answerBy: string | undefined;
+          for (const entry of args.team.filter((e) => e.moves?.length)) {
+            const result = evaluateMatchup(
+              {
+                species: entry.species,
+                ...(entry.item ? { item: entry.item } : {}),
+                ...(entry.nature ? { nature: entry.nature } : {}),
+                ...(entry.evs ? { evs: entry.evs } : {}),
+                ...(entry.championsPoints ? { championsPoints: entry.championsPoints } : {}),
+                moves: entry.moves,
+              },
+              {
+                species: form,
+                item: threat.item,
+                ability: threat.ability,
+                nature: threat.nature,
+                ...(threat.evs ? { evs: threat.evs } : {}),
+                moves: threat.moves,
+              },
+            );
+            if (!answerClass || ANSWER_CLASS_RANK[result.answerClass] < ANSWER_CLASS_RANK[answerClass]) {
+              answerClass = result.answerClass;
+              answerBy = entry.species;
+            }
+          }
           return {
             species: form,
             usage: threat.usage,
@@ -410,6 +447,7 @@ export function registerAnalyzeTools(server: McpServer) {
             hitMultiplier: multiplier,
             ...(multiplier > 1 && best ? { hitBy: best.member, hitVia: best.via } : {}),
             answered: multiplier >= 2,
+            ...(answerClass ? { answerClass, answerBy } : {}),
           };
         });
         const unanswered = threatCoverage?.filter((t) => !t.answered).map((t) => t.species) ?? [];

@@ -11,6 +11,7 @@ import { getChampionsDex } from '../champions.js';
 import { REGULATION_SETS, getRegulationSet, setStatus } from '../regulations.js';
 import { THREAT_LISTS, getThreatList, findThreat } from '../threats.js';
 import { ok, wrap, READ_ONLY_ANNOTATIONS } from '../result.js';
+import { evaluateMatchup, ANSWER_CLASS_RANK, type AnswerClass } from '../evaluator.js';
 import { parsedSetSchema, resolveMembers, type ParsedSet } from './team.js';
 
 const problemSchema = z.object({
@@ -91,7 +92,9 @@ export function registerDoctorTool(server: McpServer) {
       const lockedIds = new Set((args.lockedMembers ?? []).map((s) => s.toLowerCase().replace(/[^a-z0-9]/g, '')));
       const fastest = [...members].sort((a, b) => b.speed - a.speed)[0];
 
-      // --- Every threat with the team's best hit on it ---
+      // --- Every threat with the team's best hit on it, plus the real battle
+      // math where members supplied moves: the shared MatchupEvaluator decides
+      // what an answer actually is, instead of the type multiplier alone. ---
       const threatRows = list.threats.map((threat) => {
         const form = threat.megaForm ?? threat.form ?? threat.species;
         const ts = dex.species.get(form);
@@ -101,12 +104,44 @@ export function registerDoctorTool(server: McpServer) {
           for (const atk of new Set([...m.types, ...m.moveTypes])) eff = Math.max(eff, typeEffectiveness(atk, ts.types, 9));
           return { member: m.species, eff };
         });
+        let bestClass: AnswerClass | undefined;
+        let classBy: string | undefined;
+        let classReason: string | undefined;
+        for (const m of members.filter((mem) => mem.moves.length)) {
+          const result = evaluateMatchup(
+            {
+              species: m.species,
+              ...(m.item ? { item: m.item } : {}),
+              ...(m.ability ? { ability: m.ability } : {}),
+              ...(m.set.nature ? { nature: m.set.nature } : {}),
+              ...(m.set.evs ? { evs: m.set.evs } : {}),
+              ...(m.set.championsPoints ? { championsPoints: m.set.championsPoints } : {}),
+              moves: m.moves,
+            },
+            {
+              species: form,
+              item: threat.item,
+              ability: threat.ability,
+              nature: threat.nature,
+              ...(threat.evs ? { evs: threat.evs } : {}),
+              moves: threat.moves,
+            },
+          );
+          if (!bestClass || ANSWER_CLASS_RANK[result.answerClass] < ANSWER_CLASS_RANK[bestClass]) {
+            bestClass = result.answerClass;
+            classBy = m.species;
+            classReason = result.reason;
+          }
+        }
         return {
           form,
           usage: threat.usage,
           threatSpeed,
           bestMultiplier: Math.max(0, ...byMember.map((b) => b.eff)),
           answeredBy: byMember.filter((b) => b.eff >= 2).map((b) => b.member),
+          bestClass,
+          classBy,
+          classReason,
         };
       });
 
@@ -132,11 +167,32 @@ export function registerDoctorTool(server: McpServer) {
       // --- Problems, most severe first ---
       const problems: { statement: string; severity: 'high' | 'medium' | 'low'; evidence: string }[] = [];
       for (const t of threatRows.filter((t) => t.bestMultiplier < 2).sort((a, b) => b.usage - a.usage).slice(0, 3)) {
-        problems.push(
-          t.bestMultiplier === 0
-            ? { statement: `${t.form} cannot be hit at all — every move is resisted or immune.`, severity: 'high', evidence: `${t.form} is the meta\u2019s ${t.usage}%-usage threat and every supplied move and STAB type does 0\u00d7.` }
-            : { statement: `No super-effective answer to ${t.form} (best hit ${t.bestMultiplier}\u00d7).`, severity: t.usage >= 10 ? 'high' : 'medium', evidence: `${t.form} carries ${t.usage}% usage; the team\u2019s best hit is ${t.bestMultiplier}\u00d7 from STAB or a supplied move.` },
-        );
+        if (t.bestClass === 'UNFAVORABLE' || t.bestClass === 'UNKNOWN') {
+          problems.push({
+            statement: `No reliable answer to ${t.form} — the best matchup the battle math finds is ${t.bestClass}.`,
+            severity: t.usage >= 10 ? 'high' : 'medium',
+            evidence: `${t.classReason ?? `best hit ${t.bestMultiplier}\u00d7 from STAB or a supplied move`} (${t.form} carries ${t.usage}% usage).`,
+          });
+        } else if (!t.bestClass) {
+          // No member supplied moves, so only the type chart can speak.
+          problems.push(
+            t.bestMultiplier === 0
+              ? { statement: `${t.form} cannot be hit at all — every move is resisted or immune.`, severity: 'high', evidence: `${t.form} is the meta\u2019s ${t.usage}%-usage threat and every supplied move and STAB type does 0\u00d7.` }
+              : { statement: `No super-effective answer to ${t.form} (best hit ${t.bestMultiplier}\u00d7).`, severity: t.usage >= 10 ? 'high' : 'medium', evidence: `${t.form} carries ${t.usage}% usage; the team\u2019s best hit is ${t.bestMultiplier}\u00d7 from STAB or a supplied move.` },
+          );
+        }
+        // With a battle-math class of HARD/SOFT/REVENGE/SPEED_DEPENDENT/TRADE the
+        // matchup is playable; the initiative problem below covers the caveats.
+      }
+      for (const t of threatRows
+        .filter((t) => t.bestClass === 'REVENGE' || t.bestClass === 'SPEED_DEPENDENT' || t.bestClass === 'TRADE')
+        .sort((a, b) => b.usage - a.usage)
+        .slice(0, 2)) {
+        problems.push({
+          statement: `${t.form} matchup rides on ${t.bestClass === 'TRADE' ? 'rolls' : 'initiative'} (${t.bestClass})${t.classBy ? `, via ${t.classBy}` : ''}.`,
+          severity: 'medium',
+          evidence: t.classReason ?? 'best available exchange.',
+        });
       }
       for (const t of threatRows.filter((t) => t.answeredBy.length === 1 && t.usage >= 15).slice(0, 2)) {
         problems.push({

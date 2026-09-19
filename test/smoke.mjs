@@ -429,6 +429,53 @@ if (!/- Fake Out/.test(paste)) {
   );
 }
 
+// P1: the shared MatchupEvaluator upgrades the analysis tools' answers from
+// type multipliers to battle math, and prepare_matchup scores every four.
+{
+  const check = (label, ok) => {
+    console.log(`=== ${label} => ${ok} ===`);
+    if (!ok) failed++;
+  };
+  const team = [
+    { species: 'Garchomp', item: 'Garchompite', nature: 'Jolly', evs: { atk: 252, spe: 252 }, moves: ['Swords Dance', 'Earthquake', 'Dragon Claw', 'Rock Slide'] },
+    { species: 'Incineroar', item: 'Sitrus Berry', nature: 'Careful', championsPoints: { hp: 32, def: 14, spd: 20 }, moves: ['Fake Out', 'Flare Blitz', 'Parting Shot', 'Knock Off'] },
+    { species: 'Rillaboom', item: 'Assault Vest', nature: 'Adamant', evs: { hp: 252, atk: 252 }, moves: ['Fake Out', 'Grassy Glide', 'Wood Hammer', 'U-turn'] },
+  ];
+  const at = await client.callTool({ name: 'analyze_team', arguments: { team, regulation: 'm-c' } });
+  const rows = at.structuredContent.threatCoverage.threats;
+  check(
+    'analyze_team threat rows carry battle-math answerClass',
+    rows.every((r) => typeof r.answerClass === 'string' && typeof r.answerBy === 'string') &&
+      rows.some((r) => r.answerClass === 'UNFAVORABLE' && r.hitMultiplier >= 2),
+  );
+  const dx = await client.callTool({ name: 'diagnose_team', arguments: { team } });
+  check(
+    'diagnose_team problems agree with the evaluator',
+    dx.structuredContent.problems.some((p) => /initiative|No reliable answer/.test(p.statement)),
+  );
+  const six = [
+    { species: 'Garchomp', item: 'Garchompite', nature: 'Jolly', evs: { atk: 252, spe: 252 }, moves: ['Swords Dance', 'Earthquake', 'Dragon Claw', 'Rock Slide'] },
+    { species: 'Incineroar', item: 'Sitrus Berry', nature: 'Careful', championsPoints: { hp: 32, def: 14, spd: 20 }, moves: ['Fake Out', 'Flare Blitz', 'Parting Shot', 'Knock Off'] },
+    { species: 'Rillaboom', item: 'Assault Vest', nature: 'Adamant', evs: { hp: 252, atk: 252 }, moves: ['Fake Out', 'Grassy Glide', 'Wood Hammer', 'U-turn'] },
+    { species: 'Pelipper', item: 'Damp Rock', nature: 'Bold', evs: { hp: 252, def: 252 }, moves: ['Scald', 'Hurricane', 'U-turn', 'Roost'] },
+    { species: 'Farigiraf', item: 'Sitrus Berry', nature: 'Bold', evs: { hp: 252, def: 252 }, moves: ['Trick Room', 'Psychic', 'Helping Hand', 'Protect'] },
+    { species: 'Rotom-Wash', item: 'Sitrus Berry', nature: 'Bold', evs: { hp: 252, def: 252 }, moves: ['Volt Switch', 'Hydro Pump', 'Will-O-Wisp', 'Protect'] },
+  ];
+  const mp = await client.callTool({
+    name: 'prepare_matchup',
+    arguments: { team: six, opponent: ['Sneasler', 'Salamence-Mega', 'Gholdengo', 'Farigiraf', 'Kingambit', 'Rillaboom'] },
+  });
+  const bf = mp.structuredContent.recommendedBringFour;
+  check(
+    'prepare_matchup scores every four and reports alternates',
+    !mp.isError && bf.picks.length === 4 && bf.alternates.length === 2 && typeof bf.score === 'number' && bf.leftBehind.length === 2,
+  );
+  check(
+    'prepare_matchup leads are scored pairings',
+    mp.structuredContent.possibleLeads.pairs.length >= 1 && mp.structuredContent.possibleLeads.pairs[0].support.includes('Incineroar'),
+  );
+}
+
 // P1: server-provided workflow prompts, and the same surface over the HTTP
 // entrypoint (the remote-endpoint mode) — a real client against a spawned server.
 {
