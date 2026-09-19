@@ -18,6 +18,7 @@ Smogon-tier and archetype surface that used to sit alongside it is gone.
 ## What it provides
 
 - **26 tools** across six domains: data, team analysis, team workflows (paste in, diagnose, prepare matchups), meta (usage-derived), battle mechanics, and official regulation sets
+- **Six workflow prompts** — `/team-doctor`, `/matchup-prep`, `/build-around`, `/tournament-prep`, `/learn-my-team`, `/meta-report` — server-provided templates that chain the deterministic tools, so compound workflows stay discoverable without a 40-tool surface
 - **Structured, agent-first definitions** — every tool declares MCP annotations and an output schema, returns `structuredContent` alongside JSON text, and documents all of its parameters; the deterministic half of the [TDQS](https://tdqs.dev) checklist is linted in CI
 - Full **Pokémon Showdown** dataset — species, alternate forms, stats, moves, items, abilities, natures, learnsets, types
 - **Battle math** from Smogon's calculator — stat calculation and full damage calculation (weather, terrain, boosts, items)
@@ -137,10 +138,39 @@ With Docker (after `docker build -t getcompetitive .`):
 For Claude Desktop, add one of the same entries under `mcpServers` in
 `claude_desktop_config.json`.
 
+## Remote endpoint
+
+The same surface runs over Streamable HTTP — the stateless remote mode, one
+request per transport, safe behind a load balancer:
+
+```bash
+node dist/http-server.js            # http://127.0.0.1:3000/mcp
+PORT=8080 node dist/http-server.js
+```
+
+Connect a client with the URL `http://<host>:<port>/mcp`. TLS, auth and rate
+limiting are the deployer's concern: the server itself remains a pure offline
+read.
+
+## Workflow prompts
+
+Six server-provided prompts make the compound workflows discoverable without
+adding a tool per workflow — each chains the deterministic tools, and each
+follows the same doctrine: the model explains, getcompetitive proves.
+
+| Prompt | What it chains |
+| --- | --- |
+| `/team-doctor` | `parse_team` → `diagnose_team` → `format_team` ("fix my team") |
+| `/matchup-prep` | `parse_team` → `prepare_matchup` ("here is my opponent") |
+| `/build-around` | `get_set` → `analyze_team` → `diagnose_team` → `check_legality` → `format_team` |
+| `/tournament-prep` | `get_regulation` → `list_threats` → `get_set` (a pre-event briefing) |
+| `/learn-my-team` | `parse_team` → `analyze_team` → `diagnose_team` → `get_set` (a team guide) |
+| `/meta-report` | `list_threats` → `get_set` on the top five (a data-dated meta report) |
+
 ## Verify
 
 ```bash
-npm test   # builds and drives every tool over real MCP stdio
+npm test   # builds and drives every tool over real MCP stdio, plus the HTTP entrypoint
 ```
 
 ## Example queries
