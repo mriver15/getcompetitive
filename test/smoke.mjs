@@ -166,6 +166,22 @@ const calls = [
   ['get_sprites', { species: ['Garchomp', 'Rotom-Wash', 'Indeedee', 'Salamence-Mega', 'NotAMon', 'Annihilape'] }],
   ['get_sprites', { species: ['Garchomp', 'Basculegion'], size: 'icon' }],
   ['compare_meta', {}],
+  ['infer_set', {
+    species: 'Sneasler', regulation: 'm-c',
+    observations: [
+      { kind: 'speed', referenceSpeed: 167, relation: 'outsped' },
+      { kind: 'damageDealt', move: 'Close Combat', target: { species: 'Rillaboom', level: 50, nature: 'Adamant', evs: { hp: 252, atk: 252 } }, percent: 71 },
+      { kind: 'damageTaken', move: 'Flare Blitz', attacker: { species: 'Incineroar', level: 50, nature: 'Careful', championsPoints: { hp: 32, def: 14, spd: 20 } }, percentTaken: 80 },
+    ],
+  }],
+  ['optimize_team', {
+    team: [
+      { species: 'Garchomp', nature: 'Jolly', evs: { atk: 252, spe: 252 } },
+      { species: 'Incineroar', nature: 'Careful', championsPoints: { hp: 32, def: 14, spd: 20 } },
+      { species: 'Rillaboom', nature: 'Adamant', evs: { hp: 252, atk: 252 } },
+    ],
+    slots: 2,
+  }],
   ['analyze_replay', {
     log: '|player|p1|Alice|\n|player|p2|Bob|\n|teamsize|p1|2|p2|2\n|switch|p1a: Sneasler|Sneasler, F|100/100\n|switch|p2a: Rillaboom|Rillaboom|100/100\n|turn|1\n|move|p1a: Sneasler|Close Combat|p2a: Rillaboom\n|-damage|p2a: Rillaboom|71/100\n|move|p2a: Rillaboom|Grassy Glide|p1a: Sneasler\n|-damage|p1a: Sneasler|45/100\n|turn|2\n|move|p1a: Sneasler|Dire Claw|p2a: Rillaboom\n|-damage|p2a: Rillaboom|8/100\n|faint|p2a: Rillaboom\n|switch|p2a: Gholdengo|Gholdengo|100/100\n|turn|3\n|move|p2a: Gholdengo|Make It Rain|p1a: Sneasler\n|-damage|p1a: Sneasler|0/100\n|faint|p1a: Sneasler\n|win|Bob',
   }],
@@ -344,6 +360,75 @@ if (!/- Fake Out/.test(paste)) {
     dx.structuredContent.candidateChanges.every((c) => typeof c.dataUpdated === 'string'),
   );
 }
+// P3: set inference narrows monotonically and recovers the meta set, and the
+// team optimizer respects the constraints and Species Clause.
+{
+  const check = (label, ok) => {
+    console.log(`=== ${label} => ${ok} ===`);
+    if (!ok) failed++;
+  };
+  const inf = await client.callTool({
+    name: 'infer_set',
+    arguments: {
+      species: 'Sneasler', regulation: 'm-c',
+      observations: [
+        { kind: 'speed', referenceSpeed: 167, relation: 'outsped' },
+        { kind: 'damageDealt', move: 'Close Combat', target: { species: 'Rillaboom', level: 50, nature: 'Adamant', evs: { hp: 252, atk: 252 } }, percent: 71 },
+        { kind: 'damageTaken', move: 'Flare Blitz', attacker: { species: 'Incineroar', level: 50, nature: 'Careful', championsPoints: { hp: 32, def: 14, spd: 20 } }, percentTaken: 80 },
+      ],
+    },
+  });
+  const d = inf.structuredContent;
+  check(
+    'infer_set narrows monotonically and keeps survivors',
+    !inf.isError && d.constraints.length === 3 && d.constraints.every((k) => k.after <= k.before && k.after > 0) && d.candidates.length > 0,
+  );
+  check(
+    'infer_set recovers the meta set as most likely',
+    d.candidates[0].item === 'Grassy Seed' && d.candidates[0].nature === 'Adamant' && d.candidates[0].speed > 167,
+  );
+  check(
+    'infer_set probabilities are a valid share of survivors',
+    d.candidates.every((c, i) => c.probability > 0 && c.probability <= 100 && (i === 0 || c.probability <= d.candidates[i - 1].probability)) &&
+      (d.survivingSets <= 8 ? Math.abs(d.candidates.reduce((a, c) => a + c.probability, 0) - 100) < 1 : d.candidates.reduce((a, c) => a + c.probability, 0) < 100),
+  );
+  const infX = await client.callTool({
+    name: 'infer_set',
+    arguments: {
+      species: 'Sneasler', regulation: 'm-c',
+      observations: [
+        { kind: 'speed', referenceSpeed: 167, relation: 'outsped' },
+        { kind: 'damageDealt', move: 'Close Combat', target: { species: 'Rillaboom', level: 50, nature: 'Adamant', evs: { hp: 252, atk: 252 } }, percent: 71 },
+        { kind: 'damageTaken', move: 'Psychic', attacker: { species: 'Farigiraf', level: 50, nature: 'Modest', evs: { spa: 252 }, item: 'Choice Specs' }, percentTaken: 88 },
+      ],
+    },
+  });
+  check(
+    'infer_set eliminates impossible observations cleanly',
+    !infX.isError && infX.structuredContent.candidates.length === 0 && infX.structuredContent.constraints[2].after === 0,
+  );
+
+  const opt = await client.callTool({
+    name: 'optimize_team',
+    arguments: {
+      team: [
+        { species: 'Garchomp', nature: 'Jolly', evs: { atk: 252, spe: 252 } },
+        { species: 'Incineroar', nature: 'Careful', championsPoints: { hp: 32, def: 14, spd: 20 } },
+        { species: 'Rillaboom', nature: 'Adamant', evs: { hp: 252, atk: 252 } },
+      ],
+      slots: 2,
+    },
+  });
+  const o = opt.structuredContent;
+  check(
+    'optimize_team fills both slots with reasons and respects Species Clause',
+    !opt.isError &&
+      o.constraints.threats.length === 5 &&
+      o.recommendations.length > 0 &&
+      o.recommendations.every((r) => r.members.length === 2 && r.reasons.length > 0 && !['Garchomp', 'Incineroar', 'Rillaboom'].some((t) => r.members.includes(t))),
+  );
+}
+
 // P1: server-provided workflow prompts, and the same surface over the HTTP
 // entrypoint (the remote-endpoint mode) — a real client against a spawned server.
 {
@@ -390,7 +475,7 @@ if (!/- Fake Out/.test(paste)) {
     await httpClient.connect(new StreamableHTTPClientTransport(new URL('http://127.0.0.1:3207/mcp')));
     const httpTools = (await httpClient.listTools()).tools;
     const sprite = await httpClient.callTool({ name: 'get_sprites', arguments: { species: ['Garchomp'], size: 'icon' } });
-    check('HTTP entrypoint serves the same 28 tools', httpTools.length === 28);
+    check('HTTP entrypoint serves the same 30 tools', httpTools.length === 30);
     check('HTTP entrypoint answers a tool call', sprite.structuredContent.sprites[0].url.endsWith('445.png'));
     await httpClient.close();
   } finally {
