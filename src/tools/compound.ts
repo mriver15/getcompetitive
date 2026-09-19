@@ -39,6 +39,7 @@ import { registerReplayTool } from './replay.js';
 import { registerInferTool } from './infer.js';
 import { registerOptimizeTeamTool } from './optimize.js';
 import { READ_ONLY_ANNOTATIONS } from '../result.js';
+import { detailArg, applyLevel, LEVEL_SPECS } from './levels.js';
 
 interface CapturedTool {
   title?: string;
@@ -144,14 +145,26 @@ export function registerCompoundTools(server: McpServer) {
       {
         title: def.title,
         description: def.description,
-        inputSchema: def.inputSchema,
-        outputSchema: def.outputSchema,
+        inputSchema: z.object({ detail: detailArg, ...(getObjectShape(def.inputSchema) as ZodRawShapeCompat) }),
         annotations: READ_ONLY_ANNOTATIONS,
       },
-      (args) => {
-        type PlainArgs = Record<string, unknown>;
+      async (args) => {
+        type PlainArgs = { detail?: string } & Record<string, unknown>;
         const parsed = args as PlainArgs;
-        return def.handler(parsed);
+        const result = await def.handler(parsed);
+        if (result.structuredContent && def.outputSchema) {
+          const check = def.outputSchema.safeParse(result.structuredContent);
+          if (!check.success) {
+            throw new Error(`produced output outside its schema: ${JSON.stringify(check.error).slice(0, 200)}`);
+          }
+        }
+        if (result.structuredContent && !result.isError) {
+          const shaped = applyLevel(LEVEL_SPECS[target], result.structuredContent, parsed.detail, target);
+          if (shaped !== result.structuredContent) {
+            return { content: [{ type: 'text', text: JSON.stringify(shaped, null, 2) }], structuredContent: shaped };
+          }
+        }
+        return result;
       },
     );
   }
@@ -161,6 +174,7 @@ export function registerCompoundTools(server: McpServer) {
     const variants = modeNames.map((mode) =>
       z.object({
         mode: z.literal(mode).describe(`Run ${modes[mode]}'s operation.`),
+        detail: detailArg,
         ...(getObjectShape(defs[modes[mode]].inputSchema) as ZodRawShapeCompat),
       }),
     ) as unknown as [z.ZodTypeAny, ...z.ZodTypeAny[]];
@@ -179,7 +193,7 @@ export function registerCompoundTools(server: McpServer) {
       async (args) => {
         // registerTool cannot infer argument types from a full-schema inputSchema,
         // so the discriminated union's contract is restated here.
-        type CompoundArgs = { mode: string } & Record<string, unknown>;
+        type CompoundArgs = { mode: string; detail?: string } & Record<string, unknown>;
         const parsed = args as CompoundArgs;
         const def = defs[modes[parsed.mode]];
         const result = await def.handler(parsed);
@@ -191,6 +205,12 @@ export function registerCompoundTools(server: McpServer) {
           const check = def.outputSchema.safeParse(result.structuredContent);
           if (!check.success) {
             throw new Error(`mode ${parsed.mode} produced output outside its schema: ${JSON.stringify(check.error).slice(0, 200)}`);
+          }
+        }
+        if (result.structuredContent && !result.isError) {
+          const shaped = applyLevel(LEVEL_SPECS[modes[parsed.mode]], result.structuredContent, parsed.detail, parsed.mode);
+          if (shaped !== result.structuredContent) {
+            return { content: [{ type: 'text', text: JSON.stringify(shaped, null, 2) }], structuredContent: shaped };
           }
         }
         return result;

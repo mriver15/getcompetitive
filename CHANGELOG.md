@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking: responses are compact by default.** Every tool accepts
+  `detail: "compact" | "evidence" | "debug"` (default `"compact"`), applied by
+  a declarative per-mode field-tier table — the engines are untouched. Compact
+  returns conclusions and the numbers needed to reason (a 3-member
+  `analyze_team` synergy read drops from 7.9 KB to 3.6 KB, `prepare_matchup`
+  from 5.6 KB to 1.1 KB); `"evidence"` adds ranges, benchmarks, assumptions and
+  full per-row detail; `"debug"` adds everything plus an `engine` block with
+  the data version. Modes whose payload is already the answer (lookups,
+  regulations, pastes) are unchanged at every level. Ask for more only when
+  the reasoning actually needs it — model context is the expensive resource.
+
 ## [5.0.0] - 2026-09-19
 
 ### Changed

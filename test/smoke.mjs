@@ -245,6 +245,7 @@ async function legalMoves(species, moves) {
     name: 'team_io',
     arguments: {
       mode: 'legality',
+      detail: 'evidence',
       regulation: 'm-c',
       team: [species, 'Garchomp', 'Gholdengo', 'Incineroar', 'Pelipper', 'Farigiraf'].map((s, i) => ({
         species: s,
@@ -347,6 +348,7 @@ if (!/- Fake Out/.test(paste)) {
     name: 'analyze_battle',
     arguments: {
       mode: 'replay',
+      detail: 'evidence',
       log: '|player|p1|Alice|\n|player|p2|Bob|\n|switch|p1a: Sneasler|Sneasler|100/100\n|switch|p2a: Rillaboom|Rillaboom|100/100\n|turn|1\n|move|p1a: Sneasler|Close Combat|p2a: Rillaboom\n|-damage|p2a: Rillaboom|71/100\n|move|p2a: Rillaboom|Grassy Glide|p1a: Sneasler\n|-damage|p1a: Sneasler|45/100\n|faint|p2a: Rillaboom\n|win|Alice',
     },
   });
@@ -356,7 +358,7 @@ if (!/- Fake Out/.test(paste)) {
     !rp.isError && r.players.join(',') === 'Alice,Bob' && r.winner === 'Alice' && r.turns === 1 && r.kos.length === 1 && r.kos[0].move === 'Close Combat' && r.teams.p2.includes('Rillaboom'),
   );
   check('analyze_replay reads speed and damage from the log', r.speedConstraints.length === 1 && r.speedConstraints[0].faster.includes('Sneasler') && r.damageEvents[0].percent === 71);
-  const dx = await client.callTool({ name: 'analyze_team', arguments: { mode: 'diagnose', team: [{ species: 'Garchomp' }] } });
+  const dx = await client.callTool({ name: 'analyze_team', arguments: { mode: 'diagnose', detail: 'evidence', team: [{ species: 'Garchomp' }] } });
   check(
     'diagnose_team changes carry dataUpdated provenance',
     dx.structuredContent.candidateChanges.every((c) => typeof c.dataUpdated === 'string'),
@@ -373,6 +375,7 @@ if (!/- Fake Out/.test(paste)) {
     name: 'analyze_battle',
     arguments: {
       mode: 'infer',
+      detail: 'evidence',
       species: 'Sneasler', regulation: 'm-c',
       observations: [
         { kind: 'speed', referenceSpeed: 167, relation: 'outsped' },
@@ -399,6 +402,7 @@ if (!/- Fake Out/.test(paste)) {
     name: 'analyze_battle',
     arguments: {
       mode: 'infer',
+      detail: 'evidence',
       species: 'Sneasler', regulation: 'm-c',
       observations: [
         { kind: 'speed', referenceSpeed: 167, relation: 'outsped' },
@@ -467,7 +471,8 @@ if (!/- Fake Out/.test(paste)) {
   ];
   const mp = await client.callTool({
     name: 'prepare_matchup',
-    arguments: { team: six, opponent: ['Sneasler', 'Salamence-Mega', 'Gholdengo', 'Farigiraf', 'Kingambit', 'Rillaboom'] },
+    arguments: {
+      detail: 'evidence', team: six, opponent: ['Sneasler', 'Salamence-Mega', 'Gholdengo', 'Farigiraf', 'Kingambit', 'Rillaboom'] },
   });
   const bf = mp.structuredContent.recommendedBringFour;
   check(
@@ -477,6 +482,17 @@ if (!/- Fake Out/.test(paste)) {
   check(
     'prepare_matchup leads are scored pairings',
     mp.structuredContent.possibleLeads.pairs.length >= 1 && mp.structuredContent.possibleLeads.pairs[0].support.includes('Incineroar'),
+  );
+  const compact = await client.callTool({ name: 'analyze_team', arguments: { mode: 'synergy', team, regulation: 'm-c' } });
+  const evidence = await client.callTool({ name: 'analyze_team', arguments: { mode: 'synergy', team, regulation: 'm-c', detail: 'evidence' } });
+  const debug = await client.callTool({ name: 'analyze_team', arguments: { mode: 'synergy', team, regulation: 'm-c', detail: 'debug' } });
+  check(
+    'response levels: compact is default, evidence expands, debug adds provenance',
+    !('defensiveWeaknesses' in compact.structuredContent) &&
+      'defensiveWeaknesses' in evidence.structuredContent &&
+      !!debug.structuredContent.engine?.version &&
+      !('engine' in evidence.structuredContent) &&
+      Buffer.byteLength(JSON.stringify(compact.structuredContent)) < Buffer.byteLength(JSON.stringify(evidence.structuredContent)),
   );
 }
 
