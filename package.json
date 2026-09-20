@@ -1,7 +1,7 @@
 {
   "name": "getcompetitive",
-  "version": "6.2.2",
-  "description": "MCP server for Pok\u00e9mon Champions competitive play: official Regulation Sets, usage-derived meta, and battle math for team building and decision making",
+  "version": "6.3.0",
+  "description": "MCP server for Pokémon Champions competitive play: official Regulation Sets, usage-derived meta, and battle math for team building and decision making",
   "type": "module",
   "bin": {
     "getcompetitive": "dist/index.js"
