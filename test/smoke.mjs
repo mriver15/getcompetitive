@@ -201,6 +201,26 @@ const calls = [
 
 let failed = 0;
 
+// Client identity: the initialize handshake must tell every client this server
+// is about Pokémon Champions — a titled, described serverInfo plus model-facing
+// instructions — and every tool description must name the game, so a client
+// that surfaces only the tool list still knows what it is connected to.
+const serverInfo = client.getServerVersion() ?? {};
+if (!serverInfo.title || !serverInfo.description?.includes('Champions') || !serverInfo.websiteUrl) {
+  console.log(`=== initialize serverInfo is not Champions-titled: ${JSON.stringify(serverInfo)} ===`);
+  failed++;
+}
+if (!client.getInstructions()?.includes('Champions')) {
+  console.log('=== initialize instructions do not name the game ===');
+  failed++;
+}
+for (const t of listed.tools) {
+  if (!t.description?.includes('Champions')) {
+    console.log(`=== ${t.name} description does not name the game ===`);
+    failed++;
+  }
+}
+
 // Champions only: the Smogon-tier and archetype surface was removed deliberately
 // and must not creep back in.
 for (const gone of ['list_tiers', 'list_speed_tiers', 'list_archetypes', 'get_archetype']) {

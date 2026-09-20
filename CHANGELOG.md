@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **The server now introduces itself.** `initialize` returns a titled, described
+  `serverInfo` (name, title, description, websiteUrl) plus `instructions` that
+  tell the client's model the server is exclusively about Pokémon Champions —
+  doubles, level 50, Mega Evolution, 66 stat points, Regulation Sets M-A–M-C —
+  and how the eight `mode`-dispatching tools and six prompts hang together.
+  Every tool description now names the game too, so a client that only
+  surfaces the tool list still knows what it is connected to, and the npm
+  description says so for directory listings.
+
 ## [6.2.2] - 2026-09-19
 
 ### Changed
