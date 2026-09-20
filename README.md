@@ -17,6 +17,10 @@ Smogon-tier and archetype surface that used to sit alongside it is gone.
 
 ## What it provides
 
+- **The server introduces itself.** `initialize` returns a titled, described
+  `serverInfo` and model-facing `instructions`, and every tool description names
+  the game — so a client knows before its first tool call that this server is
+  exclusively Pokémon Champions
 - **8 compound tools**: `lookup`, `calculate`, `analyze_team`, `optimize_team`, `prepare_matchup`, `analyze_battle`, `analyze_meta`, `team_io` — intent-level entrypoints that dispatch on a `mode`, so the model picks an intent and the server does the orchestration
 - **Six workflow prompts** — `/team-doctor`, `/matchup-prep`, `/build-around`, `/tournament-prep`, `/learn-my-team`, `/meta-report` — server-provided templates that chain the eight tools, so compound workflows stay discoverable without widening the surface
 - **Structured, agent-first definitions** — every tool declares MCP annotations and an output schema, returns `structuredContent` alongside JSON text, and documents all of its parameters; the deterministic half of the [TDQS](https://tdqs.dev) checklist is linted in CI
