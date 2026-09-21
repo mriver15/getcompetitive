@@ -4,7 +4,6 @@ dist
 .github
 .omp
 test
-scripts
 *.tsbuildinfo
 .DS_Store
 .npmrc
