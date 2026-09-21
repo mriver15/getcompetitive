@@ -599,7 +599,7 @@ if (!/- Fake Out/.test(paste)) {
     !opt.isError &&
       o.constraints.threats.length === 5 &&
       o.recommendations.length > 0 &&
-      o.recommendations.every((r) => r.members.length === 2 && r.reasons.length > 0 && !['Garchomp', 'Incineroar', 'Rillaboom'].some((t) => r.members.includes(t))),
+      o.recommendations.every((r) => r.members.length === 2 && r.reasons.length > 0 && r.reasons.every((reason) => typeof reason === 'string' && reason.length > 1) && !['Garchomp', 'Incineroar', 'Rillaboom'].some((t) => r.members.includes(t))),
   );
 }
 

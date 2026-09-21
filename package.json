@@ -1,6 +1,6 @@
 {
   "name": "getcompetitive",
-  "version": "8.0.0",
+  "version": "8.0.1",
   "description": "MCP server for Pokémon Champions competitive play: official Regulation Sets, usage-derived meta, and battle math for team building and decision making",
   "type": "module",
   "bin": {

@@ -195,7 +195,7 @@ export function registerOptimizeTeamTool(server: McpServer) {
                   roles: [...new Set([...p.a.roles, ...p.b.roles])],
                   score: Number(p.score.toFixed(1)),
                   reasons: [
-                    ...[...new Set([...p.a.covers, ...p.b.covers])].length
+                    [...new Set([...p.a.covers, ...p.b.covers])].length
                       ? `${p.a.name} + ${p.b.name} together hit ${[...new Set([...p.a.covers, ...p.b.covers])].join(', ')} super-effectively`
                       : 'no super-effective coverage added',
                     ...reasonsOf(p.a).slice(0, 2),
