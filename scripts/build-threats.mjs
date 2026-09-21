@@ -345,8 +345,7 @@ const list = {
   note:
     `Usage-derived, not editorial: species, items, abilities, natures, moves and the ordering come from ` +
     `${sample.teams} tournament teams (Limitless VGC online events with at least ${sample.minPlayers} players, ` +
-    `through ${sample.through}); EV spreads come from the in-game ranked ladder. Tera types are absent because ` +
-    `Pokémon Champions has no Terastallization.`,
+    `through ${sample.through}); EV spreads come from the in-game ranked ladder.`,
   sample,
   sources: [
     { name: index.attribution ?? 'Limitless TCG', url: index.attribution_url ?? 'https://play.limitlesstcg.com/', scope: 'usage, items, abilities, natures, moves' },

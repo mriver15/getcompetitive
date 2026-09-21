@@ -6,7 +6,7 @@ export default {
     "name": "Regulation Set M-C",
     "source": "usage",
     "sourceAsOf": "2026-09-17",
-    "note": "Usage-derived, not editorial: species, items, abilities, natures, moves and the ordering come from 3143 tournament teams (Limitless VGC online events with at least 25 players, through 2026-09-17); EV spreads come from the in-game ranked ladder. Tera types are absent because Pokémon Champions has no Terastallization.",
+    "note": "Usage-derived, not editorial: species, items, abilities, natures, moves and the ordering come from 3143 tournament teams (Limitless VGC online events with at least 25 players, through 2026-09-17); EV spreads come from the in-game ranked ladder.",
     "sample": {
       "teams": 3143,
       "tournaments": 40,

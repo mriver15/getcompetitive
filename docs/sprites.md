@@ -1,0 +1,243 @@
+# Sprites — requirement and directed design
+
+Status: proposed
+Applies to: 4.2.0
+Author: written from three days of real session data, not from taste
+
+## Why
+
+A conversational client that renders a team sheet draws six cards with the species
+name, the item, the ability and the spread — and no picture, because nothing on
+this server can answer "what does a Sneasler look like".
+
+The client does have a general image lookup, and it is useless here. Measured over
+three real sessions, 18 queries for competitive species:
+
+| | |
+|---|---|
+| article images returned | **0** |
+| "closest name match" images | 34 |
+| queries answered with nothing | 8 |
+
+The 34 were a Lucario cosplayer, a Pokémon Center storefront, **a 1948 baseball
+player named Tom Mankey**, a Second World War enlistment record, and one
+`fileicon-ogg.png`. Competitive species have no Wikipedia article — they redirect
+to *List of generation N Pokémon* — so every query falls through to a Commons
+search over file descriptions, which is why a request for Annihilape returns a
+first baseman.
+
+The model handled it correctly: it read the titles, judged them unsuitable, and
+left the pictures out. That is the failure this requirement fixes — not a bug in
+the client, a hole in this server. It knows what a Sneasler is.
+
+## The constraint that shapes everything
+
+`src/result.ts` states the server's contract plainly:
+
+> Every tool on this server is the same kind of operation: a pure read over the
+> bundled Showdown dataset and the curated regulation data. No network, no auth,
+> no state, and the same arguments always produce the same result.
+
+and annotates every tool `READ_ONLY_ANNOTATIONS`, which includes
+`openWorldHint: false`.
+
+**This feature must not break that.** So:
+
+- No PokéAPI request at runtime. The id table is generated at build time and
+  committed, exactly as `threats.data.ts` and `regulations.data.ts` are.
+- No bundled image bytes. The repository does not grow by 130 KB per species.
+- `openWorldHint` **stays false**. The tool performs no network I/O; it returns
+  addresses. The *caller* fetches them. That distinction is worth stating in the
+  tool description so a client knows what it is being handed.
+
+## Requirement
+
+**R1.** A tool resolves one or more species to a stable, public URL for that
+species' artwork, with no network access and no runtime state.
+
+**R2.** Every species in the bundled Showdown dex resolves. The build fails if any
+does not, so a new generation cannot ship with silent holes.
+
+**R3.** A name that does not resolve is reported **per item**, with the same
+near-match suggestions `requireExists` already produces, and never fails the rest
+of the batch. The model asks for six and gets five plus one explanation.
+
+**R4.** The returned URL is the official artwork: transparent PNG, square,
+suitable for a card at small sizes.
+
+**R5.** The tool description tells the model what to *do* with the URL — put it in
+an image component with an explicit width — because a URL returned and not used
+is the failure mode this is meant to prevent.
+
+## Design
+
+### One tool, batched, named `get_sprites`
+
+The model asked the general lookup for **six species in one call**. Keep that
+shape: a team is the unit of work, and six round trips to draw six cards is how a
+feature goes unused.
+
+```
+get_sprites(
+  species: string[],          // 1..12. Showdown names, e.g. "Sneasler", "Lucario-Mega"
+  size?: "artwork" | "icon"   // default "artwork"
+)
+```
+
+`artwork` is 475×475 transparent PNG. `icon` is the 96×96 game sprite, for a
+compact row where a large image is wrong.
+
+### Shape of the result
+
+```json
+{
+  "sprites": [
+    {
+      "species": "Sneasler",
+      "name": "Sneasler",
+      "num": 903,
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/903.png",
+      "alt": "Sneasler"
+    }
+  ],
+  "unresolved": [
+    { "species": "Sneaslerr", "reason": "No such species. Did you mean: Sneasler?" }
+  ]
+}
+```
+
+`alt` is for the image component's accessibility field, and it is the species
+name — not a description, because the client already says the name beside it.
+
+### Where the ids come from
+
+`@pkmn/dex` already gives `num` for every species (`speciesToObj` projects it
+today). For a base species the PokéAPI id **is** the national dex number:
+
+```
+Annihilape  num 979  → .../official-artwork/979.png     ✓ verified
+Basculegion num 902  → .../official-artwork/902.png     ✓ verified
+```
+
+Forms are the exception and they are not derivable: PokéAPI assigns its own ids
+above 10000, and they do not follow from the dex number or the forme name.
+
+```
+Lucario-Mega       num 448   → id 10059
+Swampert-Mega      num 260   → id 10064
+Rotom-Wash         num 479   → id 10009
+Landorus-Therian   num 645   → id 10021
+```
+
+So `scripts/build-sprites.mjs` resolves every species in the dex against PokéAPI's
+`/pokemon` endpoint once, at build time, and writes `src/sprites.data.ts`:
+
+```ts
+// Generated by scripts/build-sprites.mjs — do not edit by hand.
+// PokéAPI ids for every species in the Showdown dex, keyed by toID(name).
+// Base species use their national dex number; formes get PokéAPI's own id,
+// which is not derivable from num or from the forme name.
+export default {
+  "sneasler": 903,
+  "lucariomega": 10059,
+  // …
+}
+```
+
+Follow `build-threats.mjs` for structure: a header saying it is generated, a
+summary of where the data came from and when, and a script that can be re-run.
+
+**Resolution needs a fallback rule.** Verified against PokéAPI: 22 of the 24
+species in the Regulation M-C threat list resolve by plain lowercased name; two
+need a `-male` suffix, and both are sexed species — `Basculegion` and `Indeedee`.
+The build script tries the plain name, then `-male`, then hand-written aliases for
+anything that needs them. Whatever it tries, the result is baked, so the runtime
+never guesses.
+
+### Integration with the client
+
+Bud renders an `image` component from an http URL, so the model can put the
+returned URL straight into a team card:
+
+```json
+{"type": "grid", "columns": 3, "children": [
+  {"type": "card", "title": "Sneasler", "subtitle": "Poison / Fighting", "children": [
+    {"type": "image", "url": ".../903.png", "alt": "Sneasler",
+     "width": 96, "height": 96, "fit": "fit", "radius": 10}
+  ]}
+]}
+```
+
+**Width and height must be given.** An image with no stated size stretches to
+whatever contains it, and a 475-pixel sprite filling a card is the wrong picture.
+
+Returning image *bytes* instead was considered and rejected. Bytes arrive as an
+image content block, which the client draws **under the tool row** — not inside
+the rendered surface — so a team sheet would still have no pictures in it. It also
+requires the server to fetch, which breaks the contract above.
+
+### Failure modes
+
+| what | what to return |
+|---|---|
+| name not in the dex | `unresolved` entry with the near-match list from `requireExists` |
+| species exists, no id baked | `unresolved` with **"No artwork is published for this species."** — one line, and never a list of what does have art |
+| `species` empty or over 12 | `err`, stating the limit |
+| every name unresolved | a normal result with an empty `sprites` array — not an error; the model asked a fair question and the answer is "none" |
+
+The third row is not hypothetical. `get_set` currently fails on 40% of calls
+(12 of 30 in real use) and answers each failure with a ~350-character dump of
+every threat that *does* have a curated set. The model cannot discover what is
+available except by failing, and the failure is bigger than the answer would have
+been. **Do not repeat that pattern here.**
+
+### Versioning
+
+Five tool names were renamed or removed between 3.x and 4.0 — `search` →
+`search_dex`, `speed_check` → `check_speed`, `calc_matchups` →
+`calculate_matchups`, `list_archetypes` and `get_archetype` gone. The calls
+succeeded when made and the names no longer exist; a client with a warm tool cache
+or a resumed conversation will call the old ones.
+
+`search_dex` is now the one tool with a live predecessor and **zero calls**. The
+rename cost it its discoverability. If any name changes here, keep the old one as
+a deprecated alias for at least one minor version.
+
+## Acceptance criteria
+
+1. `get_sprites({species: ["Sneasler","Annihilape","Lucario-Mega"]})` returns three
+   URLs, each an HTTP 200 PNG with a transparent background.
+2. Every species in the bundled dex has an entry in `sprites.data.ts`; `npm run
+   build` fails with a list of the missing ones otherwise.
+3. `get_sprites({species: ["Sneaslerr"]})` is **not** an error result, and its
+   single `unresolved` entry suggests `Sneasler`.
+4. A batch of five valid and one invalid returns five sprites and one unresolved.
+5. `get_sprites({species: []})` is an error result naming the limit.
+6. The tool performs no network I/O: it succeeds with networking disabled.
+7. `npm test` covers all of the above without touching the network.
+
+## What this deliberately does not do
+
+**Not animated sprites.** Showdown's animated GIFs exist, but 130 KB per frame set
+in a card the reader scans is the wrong trade, and the client would rather have a
+still.
+
+**Not shiny variants.** Add a `shiny?: boolean` argument later if anyone asks;
+PokéAPI publishes `official-artwork/shiny/{id}.png`, so it is one line in the
+build script and one in the tool.
+
+**Not a general image search.** This resolves species to the artwork that already
+exists for them. That is the whole job, and it is the job the general lookup
+cannot do.
+
+## Appendix — the measurements this rests on
+
+- `list_threats` for Regulation M-C: **24 species, 24 resolve to artwork (100%)**.
+  Two need a `-male` suffix; `basculegion` 404s where `basculegion-male` works.
+- Artwork: `475×475`, transparent PNG, ~130 KB, HTTP 200, no key, no account.
+- Real usage of the general lookup: 3 calls, 18 queries, **0 usable images**,
+  34 rejected by the model as unsuitable.
+- Real `get_set` usage: 30 calls, **12 failed (40%)**, each with a ~350-character
+  irrelevance.
+- Surface: 21 tools, 52,467 characters of schema. `optimize_evs` alone is 13,093
+  and was **never called** in three days — worth its own look, separately.

@@ -1,9 +1,9 @@
 /**
- * The compound surface: eight intent-level tools over the full engine.
+ * The compound surface: nine intent-level tools over the full engine.
  *
  * Every specialized tool's schema and handler are registered onto a throwaway
  * capture server — so the 30 underlying definitions stay exactly where they
- * are, validated as before — and this module re-exposes them as eight
+ * are, validated as before — and this module re-exposes them as nine
  * entrypoints, each dispatching on a `mode` field (or, for single-purpose
  * tools, taking the absorbed tool's arguments directly). The model picks an
  * intent; the server does the orchestration.
@@ -20,6 +20,7 @@
  *     analyze_meta    the meta             (threats/compare/set)
  *     team_io         team import/export   (parse/format/legality/
  *                                          regulation/regulations)
+ *     record_set      file a generated set (the one entrypoint that writes)
  */
 import { z } from 'zod';
 import type { ZodRawShapeCompat } from '@modelcontextprotocol/sdk/server/zod-compat.js';
@@ -39,14 +40,16 @@ import { registerReplayTool } from './replay.js';
 import { registerInferTool } from './infer.js';
 import { registerOptimizeTeamTool } from './optimize.js';
 import { registerScoutTool } from './scout.js';
-import { READ_ONLY_ANNOTATIONS } from '../result.js';
+import { READ_ONLY_ANNOTATIONS, WRITE_ANNOTATIONS } from '../result.js';
 import { detailArg, applyLevel, LEVEL_SPECS } from './levels.js';
+import { viewFor, wrapEnvelope, WORKSPACE_RESOURCE_URI } from '../apps/envelope.js';
 
 interface CapturedTool {
   title?: string;
   description?: string;
   inputSchema: z.ZodTypeAny;
   outputSchema?: z.ZodTypeAny;
+  annotations?: typeof READ_ONLY_ANNOTATIONS | typeof WRITE_ANNOTATIONS;
   handler: (args: Record<string, unknown>) => CallToolResult | Promise<CallToolResult>;
 }
 
@@ -99,6 +102,7 @@ const COMPOUND: Record<string, Record<string, string>> = {
 const PLAIN: Record<string, string> = {
   optimize_team: 'optimize_team',
   prepare_matchup: 'prepare_matchup',
+  record_set: 'record_set',
 };
 
 const DESCRIPTIONS: Record<string, string> = {
@@ -149,7 +153,11 @@ export function registerCompoundTools(server: McpServer) {
         title: def.title,
         description: def.description,
         inputSchema: z.object({ detail: detailArg, ...(getObjectShape(def.inputSchema) as ZodRawShapeCompat) }),
-        annotations: READ_ONLY_ANNOTATIONS,
+        // The absorbed tool's own annotations, so the one writer on the surface is
+        // never advertised as a read.
+        annotations: def.annotations ?? READ_ONLY_ANNOTATIONS,
+        // App-linked tools point the host at the bundled workspace resource.
+        ...(viewFor(plainName) ? { _meta: { ui: { resourceUri: WORKSPACE_RESOURCE_URI } } } : {}),
       },
       async (args) => {
         type PlainArgs = { detail?: string } & Record<string, unknown>;
@@ -163,8 +171,20 @@ export function registerCompoundTools(server: McpServer) {
         }
         if (result.structuredContent && !result.isError) {
           const shaped = applyLevel(LEVEL_SPECS[target], result.structuredContent, parsed.detail, target);
+          const text = JSON.stringify(shaped, null, 2);
+          if (viewFor(plainName)) {
+            return {
+              content: [{ type: 'text', text }],
+              structuredContent: wrapEnvelope(
+                plainName,
+                undefined,
+                shaped,
+                typeof parsed.regulation === 'string' ? parsed.regulation : undefined,
+              ),
+            };
+          }
           if (shaped !== result.structuredContent) {
-            return { content: [{ type: 'text', text: JSON.stringify(shaped, null, 2) }], structuredContent: shaped };
+            return { content: [{ type: 'text', text }], structuredContent: shaped };
           }
         }
         return result;
@@ -192,6 +212,8 @@ export function registerCompoundTools(server: McpServer) {
         description: DESCRIPTIONS[name],
         inputSchema,
         annotations: READ_ONLY_ANNOTATIONS,
+        // `analyze_team` is App-linked; every other compound tool stays model-only.
+        ...(viewFor(name, modeNames[0]) ? { _meta: { ui: { resourceUri: WORKSPACE_RESOURCE_URI } } } : {}),
       },
       async (args) => {
         // registerTool cannot infer argument types from a full-schema inputSchema,
@@ -212,8 +234,20 @@ export function registerCompoundTools(server: McpServer) {
         }
         if (result.structuredContent && !result.isError) {
           const shaped = applyLevel(LEVEL_SPECS[modes[parsed.mode]], result.structuredContent, parsed.detail, parsed.mode);
+          const text = JSON.stringify(shaped, null, 2);
+          if (viewFor(name, parsed.mode)) {
+            return {
+              content: [{ type: 'text', text }],
+              structuredContent: wrapEnvelope(
+                name,
+                parsed.mode,
+                shaped,
+                typeof parsed.regulation === 'string' ? parsed.regulation : undefined,
+              ),
+            };
+          }
           if (shaped !== result.structuredContent) {
-            return { content: [{ type: 'text', text: JSON.stringify(shaped, null, 2) }], structuredContent: shaped };
+            return { content: [{ type: 'text', text }], structuredContent: shaped };
           }
         }
         return result;

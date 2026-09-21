@@ -55,7 +55,6 @@ const setSchema = z.object({
     .boolean()
     .optional()
     .describe('Force the ability on (true) or off (false), e.g. to compare Protosynthesis active vs not; omitted leaves it to the calc.'),
-  isDynamaxed: z.boolean().optional().describe('Treat this Pokémon as Dynamaxed (doubles HP and alters several moves).'),
   curHP: z.number().optional().describe('Current HP when entering damaged, e.g. 120; defaults to full HP.'),
   moves: z
     .array(z.string())
@@ -275,7 +274,6 @@ export function registerCalcTools(server: McpServer) {
           boosts?: Record<string, number>;
           status?: string;
           abilityOn?: boolean;
-          isDynamaxed?: boolean;
           curHP?: number;
         };
         defender: {
@@ -289,7 +287,6 @@ export function registerCalcTools(server: McpServer) {
           boosts?: Record<string, number>;
           status?: string;
           abilityOn?: boolean;
-          isDynamaxed?: boolean;
           curHP?: number;
         };
         move: string;

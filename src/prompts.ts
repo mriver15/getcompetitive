@@ -44,6 +44,7 @@ Then, in order:
 2. Run analyze_team with mode "synergy" with mode "diagnose" on the parsed team, passing the goal and any members the user wants kept.
 3. Walk through the problems with their evidence, then the candidate changes with their math. Say plainly which changes are exact (spread, move) and which are typing-only heuristics (member swaps) — analyze_team with mode "synergy" with mode "diagnose" labels the confidence, repeat it.
 4. If you propose a changed team, run team_io with mode "format" on it so the user can copy the paste straight into the game.
+5. For each member whose set you actually changed, run record_set with basis "proposed" and tool "diagnose_team", so the changed set is on file and analyze_meta with mode "set" returns it later with includeRecorded. Say which sets you recorded; a record is your own working note, not measured usage.
 
 Every claim must come from the tools\u2019 output. You explain; getcompetitive proves.`,
           },
@@ -117,6 +118,7 @@ Workflow:
 2. Run analyze_team with mode "synergy" on the partial team to see the defensive weaknesses and the types nothing hits super-effectively — those are the gaps the remaining slots must fill.
 3. Run analyze_team with mode "diagnose" on the partial team and mine its candidate changes (member swaps and move changes) for gap-filling partners; prefer partners the meta has usage data for (analyze_meta with mode "threats"), and say when a pick is typing-only.
 4. Assemble six members, run team_io with mode "legality" against the regulation, then team_io with mode "format" the finished squad so the user can paste it.
+5. For every member whose set the meta has no data for — a typing-only pick or a spread you derived — run record_set with basis "proposed" and tool "build-around", so the set you settled on can be read back later with analyze_meta with mode "set" and includeRecorded. Say which ones you recorded.
 
 Explain each pick with its evidence (coverage, speed, or usage). You design; getcompetitive proves the picks.`,
           },
@@ -211,6 +213,7 @@ Workflow:
 2. Walk through what the log proved: each extracted observation, the moves seen, and the narrowing of the candidate sets.
 3. State the surviving candidates with their probability shares, and what would pin it down further (an item reveal, one more Speed relation, a resisted hit).
 4. For the rematch: run prepare_matchup with the opponent's top candidate set in mind, and say what changes between the most and second-most likely sets.
+5. Run record_set with basis "inferred" and tool "infer_set" for the surviving candidates, citing what pinned each one, so a later pass against this opponent starts from what the log proved. Say which ones you recorded.
 
 Every number comes from the tools. You explain; getcompetitive proves.`,
           },

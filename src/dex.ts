@@ -25,7 +25,7 @@ export { toID };
 export const STATS = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'] as const;
 export type StatID = (typeof STATS)[number];
 
-/** The 18 classic types; Stellar is Terastal-only and outside them. */
+/** The 18 types a Champions battle uses; Stellar is outside them. */
 export const TYPES18 = [
   'Normal', 'Fighting', 'Flying', 'Poison', 'Ground', 'Rock', 'Bug', 'Ghost', 'Steel',
   'Fire', 'Water', 'Grass', 'Electric', 'Psychic', 'Ice', 'Dragon', 'Dark', 'Fairy',
@@ -60,7 +60,6 @@ export function speciesToObj(s: Species) {
   return {
     name: s.name,
     num: s.num,
-    gen: s.gen,
     types: s.types,
     baseStats: s.baseStats,
     bst: s.bst,
@@ -86,11 +85,6 @@ export function speciesToObj(s: Species) {
     evoMove: s.evoMove,
     evoCondition: s.evoCondition,
     isMega: s.isMega || undefined,
-    isPrimal: s.isPrimal || undefined,
-    canGigantamax: s.canGigantamax,
-    cannotDynamax: s.cannotDynamax,
-    isNonstandard: s.isNonstandard,
-    unreleasedHidden: s.unreleasedHidden || undefined,
     tags: s.tags,
   };
 }
@@ -99,7 +93,6 @@ export function moveToObj(m: Move) {
   return {
     name: m.name,
     num: m.num,
-    gen: m.gen,
     type: m.type,
     category: m.category,
     basePower: m.basePower,
@@ -112,16 +105,11 @@ export function moveToObj(m: Move) {
     desc: m.desc,
     secondary: m.secondary ?? undefined,
     secondaries: m.secondaries,
-    isZ: m.isZ || undefined,
-    zMove: m.zMove,
-    isMax: m.isMax || undefined,
-    maxMove: m.maxMove,
     breaksProtect: m.breaksProtect || undefined,
     drain: m.drain,
     recoil: m.recoil,
     multihit: m.multihit,
     alwaysHit: m.alwaysHit || undefined,
-    isNonstandard: m.isNonstandard,
   };
 }
 
@@ -129,21 +117,21 @@ export function itemToObj(i: Item) {
   return {
     name: i.name,
     num: i.num,
-    gen: i.gen,
-    shortDesc: i.shortDesc,
-    desc: i.desc,
+    // Showdown marks an entry it has retired with the game whose rules the text
+    // describes ("(Gen 2) …"). Which earlier game a relic came from is not
+    // something this server reports, so the marker goes and the effect text —
+    // the dataset's own wording for the entry — stands on its own.
+    shortDesc: (i.shortDesc ?? '').replace(/^\(Gen [^)]*\)\s*/, ''),
+    desc: (i.desc ?? '').replace(/^\(Gen [^)]*\)\s*/, ''),
     isBerry: i.isBerry || undefined,
     isChoice: i.isChoice || undefined,
     isGem: i.isGem || undefined,
     isPokeball: i.isPokeball || undefined,
     megaStone: i.megaStone,
-    zMove: i.zMove,
-    naturalGift: i.naturalGift,
     fling: i.fling,
     boosts: i.boosts || undefined,
     forcedForme: i.forcedForme,
     itemUser: i.itemUser,
-    isNonstandard: i.isNonstandard,
   };
 }
 
@@ -151,11 +139,9 @@ export function abilityToObj(a: Ability) {
   return {
     name: a.name,
     num: a.num,
-    gen: a.gen,
     shortDesc: a.shortDesc,
     desc: a.desc,
     flags: a.flags,
-    isNonstandard: a.isNonstandard,
   };
 }
 
@@ -164,7 +150,6 @@ export function natureToObj(n: Nature) {
     name: n.name,
     plus: n.plus,
     minus: n.minus,
-    gen: n.gen,
   };
 }
 
@@ -207,8 +192,6 @@ export function typeToObj(t: DexType) {
   }
   return {
     name: t.name,
-    gen: t.gen,
-    isNonstandard: t.isNonstandard,
     damageTaken: taken,
     weaknesses,
     resistances,
@@ -278,7 +261,11 @@ export function learnsetToObj(ls: Learnset) {
   return {
     exists: ls.exists,
     eventOnly: ls.eventOnly,
-    eventData: ls.eventData ?? undefined,
+    // Which past game ran an event distribution (`generation`, `source`,
+    // `emeraldEventEgg`) is provenance into the mainline releases, and the games
+    // are not what this server is about: the level, moves and fixed attributes
+    // are what a set can use.
+    eventData: ls.eventData?.map(({ generation, source, emeraldEventEgg, ...rest }) => rest),
     movesBySource: buckets,
     totalMoves: ls.learnset ? Object.keys(ls.learnset).length : 0,
   };
@@ -297,8 +284,11 @@ function normalizeSources(sources: MoveSource[]): string[] {
     else if (/^[T]$/.test(m)) out.add('Tutor');
     else if (/^[S]\d*$/.test(m)) out.add('Event');
     else if (/^[R]$/.test(m)) out.add('Raid/Event');
-    else if (/^[V]$/.test(m)) out.add('Virtual Console transfer');
-    else if (/^[D]$/.test(m)) out.add('Dream World');
+    // Routes that only ever belonged to earlier games' distribution machinery —
+    // a transfer up from a re-release, and the Dream World web feature — carry no
+    // name a Champions player would recognise, so they are reported plainly.
+    else if (/^[V]$/.test(m)) out.add('Transfer');
+    else if (/^[D]$/.test(m)) out.add('Other');
     else if (/^[P]$/.test(m)) out.add('Pre-evolution');
     else out.add('Other');
   }
@@ -389,7 +379,6 @@ export interface SetInput {
   boosts?: Record<string, number>;
   status?: string;
   abilityOn?: boolean;
-  isDynamaxed?: boolean;
   curHP?: number;
   moves?: string[];
 }
@@ -456,7 +445,6 @@ export function buildPokemon(gen: GenerationNum, input: SetInput): Pokemon {
   if (input.ability) options.ability = input.ability;
   if (input.status) options.status = input.status;
   if (input.abilityOn !== undefined) options.abilityOn = input.abilityOn;
-  if (input.isDynamaxed !== undefined) options.isDynamaxed = input.isDynamaxed;
   if (input.curHP !== undefined) options.curHP = input.curHP;
   if (input.moves) options.moves = input.moves;
 

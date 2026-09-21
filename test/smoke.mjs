@@ -1,13 +1,22 @@
 import { spawn } from 'node:child_process';
+import { appendFileSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+
+// `record_set` writes to a per-user file; point it at a scratch one so the suite
+// never touches the store a person actually uses.
+const scratch = mkdtempSync(join(tmpdir(), 'getcompetitive-smoke-'));
+const storeFile = join(scratch, 'sets.jsonl');
 
 const client = new Client({ name: 'smoke', version: '0.0.0' });
 const transport = new StdioClientTransport({
   command: 'node',
   args: ['dist/index.js'],
   stderr: 'pipe',
+  env: { ...process.env, GETCOMPETITIVE_STORE: storeFile },
 });
 transport.stderr?.on('data', (d) => process.stderr.write(`[server] ${d}`));
 
@@ -82,7 +91,7 @@ const calls = [
   ['analyze_team', { mode: 'synergy', 
     team: [
       { species: 'Garchomp', moves: ['Earthquake', 'Dragon Claw', 'Rock Slide', 'Swords Dance'] },
-      { species: 'Dragonite', teraType: 'Normal', moves: ['Extreme Speed', 'Dragon Dance', 'Earthquake', 'Outrage'] },
+      { species: 'Dragonite', moves: ['Extreme Speed', 'Dragon Dance', 'Earthquake', 'Outrage'] },
       { species: 'Salamence', moves: ['Dragon Dance', 'Outrage', 'Earthquake', 'Dual Wingbeat'] },
       { species: 'Gholdengo', moves: ['Make It Rain', 'Shadow Ball', 'Nasty Plot', 'Recover'] },
       { species: 'Pelipper', moves: ['Surf', 'Hurricane', 'U-turn', 'Roost'] },
@@ -229,6 +238,51 @@ for (const gone of ['list_tiers', 'list_speed_tiers', 'list_archetypes', 'get_ar
     failed++;
   }
 }
+
+// The MCP App surface: one bundled HTML resource, registered once, linked from
+// the three App tools, and served byte-identical over every transport — never a
+// runtime filesystem path. Non-App tools carry no `_meta.ui` at all.
+{
+  const check = (label, ok) => {
+    console.log(`=== ${label} => ${ok} ===`);
+    if (!ok) failed++;
+  };
+  const uiTools = listed.tools.filter((t) => ['analyze_team', 'optimize_team', 'prepare_matchup'].includes(t.name));
+  check(
+    'the three App tools point at the workspace resource',
+    uiTools.length === 3 && uiTools.every((t) => t._meta?.ui?.resourceUri === 'ui://getcompetitive/workspace'),
+  );
+  check(
+    'no other tool is App-linked',
+    listed.tools.every((t) => ['analyze_team', 'optimize_team', 'prepare_matchup'].includes(t.name) || t._meta?.ui === undefined),
+  );
+  const resources = (await client.listResources()).resources;
+  const ws = resources.find((r) => r.uri === 'ui://getcompetitive/workspace');
+  check('the workspace resource is listed with the app mime type', !!ws && ws.mimeType === 'text/html;profile=mcp-app');
+  const read = await client.readResource({ uri: 'ui://getcompetitive/workspace' });
+  const html = read.contents.map((c) => ('text' in c ? c.text : '')).join('');
+  check(
+    'the workspace resource serves the bundled app, not a dev path',
+    read.contents.some((c) => c.mimeType === 'text/html;profile=mcp-app' && c.uri === 'ui://getcompetitive/workspace') &&
+      html.includes('id="root"') &&
+      html.includes('getcompetitive') &&
+      !html.includes('src/'),
+  );
+  const synergy = await client.callTool({
+    name: 'analyze_team',
+    arguments: { mode: 'synergy', team: [{ species: 'Garchomp', moves: ['Earthquake'] }], regulation: 'm-c' },
+  });
+  check(
+    'an App-linked result is wrapped in the versioned envelope',
+    !synergy.isError &&
+      synergy.structuredContent.schemaVersion === 1 &&
+      synergy.structuredContent.view === 'teamDoctor' &&
+      synergy.structuredContent.tool === 'analyze_team' &&
+      synergy.structuredContent.mode === 'synergy' &&
+      typeof synergy.structuredContent.data.score.overall === 'number',
+  );
+}
+
 for (const [name, args] of calls) {
   const res = await client.callTool({ name, arguments: args });
   const text = (res.content ?? []).filter((c) => c.type === 'text').map((c) => c.text).join('');
@@ -303,6 +357,92 @@ for (const threat of threats) {
   }
 }
 console.log(`=== ${threats.length} generated sets all pass check_legality ===`);
+
+// The record of sets the reasoning generated: a per-user file, never blended
+// with the usage-derived meta. `Annihilape` is off the M-C list on purpose, so
+// the record is the only thing that can answer for it.
+{
+  const check = (label, ok) => {
+    console.log(`=== ${label} => ${ok} ===`);
+    if (!ok) failed++;
+  };
+  const proposed = {
+    species: 'Annihilape',
+    item: 'Leftovers',
+    ability: 'Defiant',
+    nature: 'Adamant',
+    championsPoints: { hp: 32, atk: 32, spd: 2 },
+    moves: ['Rage Fist', 'Drain Punch', 'Protect', 'Bulk Up'],
+  };
+  const write = (set, extra = {}) =>
+    client.callTool({ name: 'record_set', arguments: { set, basis: 'proposed', tool: 'diagnose_team', regulation: 'm-c', ...extra } });
+
+  // A species the meta has no set for: without a record it is a usage miss that
+  // names the way to read records back.
+  const miss = await client.callTool({ name: 'analyze_meta', arguments: { mode: 'set', species: 'Annihilape' } });
+  check('an unranked species is a usage miss that points at includeRecorded', !!miss.isError && miss.content[0].text.includes('includeRecorded'));
+
+  const first = await write(proposed, { note: 'derived for a scratch team' });
+  check(
+    'record_set files a generated set',
+    !first.isError && first.structuredContent.created === true && first.structuredContent.stored === 1 && first.structuredContent.species === 'Annihilape',
+  );
+  check('a record carries no usage figure and gets a canonical id', first.structuredContent.usage === undefined && first.structuredContent.id.startsWith('gc_'));
+
+  const again = await write(proposed);
+  check('re-recording an identical set writes nothing', !again.isError && again.structuredContent.created === false && again.structuredContent.id === first.structuredContent.id);
+  check('the store holds one line for one set', readFileSync(storeFile, 'utf8').trim().split('\n').length === 1);
+
+  // The same spread in the other scale is the same set, so it must not file twice.
+  const evScale = await write({ ...proposed, championsPoints: undefined, evs: { hp: 252, atk: 252, spd: 16 } });
+  check('the two spread scales hash to one record', !evScale.isError && evScale.structuredContent.created === false && evScale.structuredContent.id === first.structuredContent.id);
+
+  const changed = await client.callTool({
+    name: 'record_set',
+    arguments: { set: { ...proposed, championsPoints: { hp: 32, atk: 20, spe: 14 } }, basis: 'inferred', tool: 'infer_set', regulation: 'm-c' },
+  });
+  check('a changed spread is a new record', !changed.isError && changed.structuredContent.created === true && changed.structuredContent.id !== first.structuredContent.id);
+
+  // Reading back: a usage set keeps its usage fields and gains the records; an
+  // unranked species is answered by its records alone.
+  const ranked = await client.callTool({ name: 'analyze_meta', arguments: { mode: 'set', species: 'Garchomp', includeRecorded: true } });
+  check('a usage set still answers with its usage fields', !ranked.isError && typeof ranked.structuredContent.usage === 'number' && ranked.structuredContent.recorded === undefined);
+
+  const alone = await client.callTool({ name: 'analyze_meta', arguments: { mode: 'set', species: 'Annihilape', includeRecorded: true } });
+  check(
+    'an unranked species answers with its records alone',
+    !alone.isError && alone.structuredContent.usage === undefined && alone.structuredContent.recorded.length === 2,
+  );
+
+  // The batch path answers through the same shape, so a record-only entry must
+  // not be rejected as outside its schema.
+  const batch = await client.callTool({ name: 'analyze_meta', arguments: { mode: 'set', species: ['Garchomp', 'Annihilape'], includeRecorded: true } });
+  check(
+    'a batched read mixes usage sets and record-only answers',
+    !batch.isError &&
+      batch.structuredContent.sets.length === 2 &&
+      typeof batch.structuredContent.sets[0].usage === 'number' &&
+      batch.structuredContent.sets[1].usage === undefined &&
+      batch.structuredContent.sets[1].recorded.length === 2,
+  );
+  check(
+    'a record comes back with its paste and origin, labelled by basis',
+    alone.structuredContent.recorded[0].paste.startsWith('Annihilape @ Leftovers') &&
+      alone.structuredContent.recorded[0].origin.tool === 'diagnose_team' &&
+      alone.structuredContent.recorded[0].basis === 'proposed' &&
+      alone.structuredContent.recorded[1].basis === 'inferred',
+  );
+
+  const bogus = await write({ ...proposed, species: 'NotAMon' });
+  check('an unresolvable species is refused, not filed', !!bogus.isError);
+  check('the refusal left the store alone', readFileSync(storeFile, 'utf8').trim().split('\n').length === 2);
+
+  // A process killed mid-append leaves a partial line; skipping it must not cost
+  // the records around it, and the count has to be visible rather than silent.
+  appendFileSync(storeFile, '{"id":"gc_trunc","species":"Annih');
+  const afterTear = await client.callTool({ name: 'record_set', arguments: { set: { ...proposed, championsPoints: { hp: 32, atk: 20, spe: 14 } }, basis: 'inferred', tool: 'infer_set', regulation: 'm-c' } });
+  check('a torn line is skipped, not fatal', !afterTear.isError && afterTear.structuredContent.created === false && afterTear.structuredContent.stored === 2 && afterTear.structuredContent.skipped === 1);
+}
 
 // get_sprites acceptance: batch order, partial failure, dex numbers, artwork vs
 // icon, and purity (deterministic table lookup — no runtime network anywhere).
@@ -387,7 +527,7 @@ if (!/- Fake Out/.test(paste)) {
   const dx = await client.callTool({ name: 'analyze_team', arguments: { mode: 'diagnose', detail: 'evidence', team: [{ species: 'Garchomp' }] } });
   check(
     'diagnose_team changes carry dataUpdated provenance',
-    dx.structuredContent.candidateChanges.every((c) => typeof c.dataUpdated === 'string'),
+    dx.structuredContent.data.candidateChanges.every((c) => typeof c.dataUpdated === 'string'),
   );
 }
 // P3: set inference narrows monotonically and recovers the meta set, and the
@@ -453,7 +593,7 @@ if (!/- Fake Out/.test(paste)) {
       slots: 2,
     },
   });
-  const o = opt.structuredContent;
+  const o = opt.structuredContent.data;
   check(
     'optimize_team fills both slots with reasons and respects Species Clause',
     !opt.isError &&
@@ -476,7 +616,7 @@ if (!/- Fake Out/.test(paste)) {
     { species: 'Rillaboom', item: 'Assault Vest', nature: 'Adamant', evs: { hp: 252, atk: 252 }, moves: ['Fake Out', 'Grassy Glide', 'Wood Hammer', 'U-turn'] },
   ];
   const at = await client.callTool({ name: 'analyze_team', arguments: { mode: 'synergy', team, regulation: 'm-c' } });
-  const rows = at.structuredContent.threatCoverage.threats;
+  const rows = at.structuredContent.data.threatCoverage.threats;
   check(
     'analyze_team threat rows carry battle-math answerClass',
     rows.every((r) => typeof r.answerClass === 'string' && typeof r.answerBy === 'string') &&
@@ -485,7 +625,7 @@ if (!/- Fake Out/.test(paste)) {
   const dx = await client.callTool({ name: 'analyze_team', arguments: { mode: 'diagnose', team } });
   check(
     'diagnose_team problems agree with the evaluator',
-    dx.structuredContent.problems.some((p) => /initiative|No reliable answer/.test(p.statement)),
+    dx.structuredContent.data.problems.some((p) => /initiative|No reliable answer/.test(p.statement)),
   );
   const six = [
     { species: 'Garchomp', item: 'Garchompite', nature: 'Jolly', evs: { atk: 252, spe: 252 }, moves: ['Swords Dance', 'Earthquake', 'Dragon Claw', 'Rock Slide'] },
@@ -500,24 +640,24 @@ if (!/- Fake Out/.test(paste)) {
     arguments: {
       detail: 'evidence', team: six, opponent: ['Sneasler', 'Salamence-Mega', 'Gholdengo', 'Farigiraf', 'Kingambit', 'Rillaboom'] },
   });
-  const bf = mp.structuredContent.recommendedBringFour;
+  const bf = mp.structuredContent.data.recommendedBringFour;
   check(
     'prepare_matchup scores every four and reports alternates',
     !mp.isError && bf.picks.length === 4 && bf.alternates.length === 2 && typeof bf.score === 'number' && bf.leftBehind.length === 2,
   );
   check(
     'prepare_matchup leads are scored pairings',
-    mp.structuredContent.possibleLeads.pairs.length >= 1 && mp.structuredContent.possibleLeads.pairs[0].support.includes('Incineroar'),
+    mp.structuredContent.data.possibleLeads.pairs.length >= 1 && mp.structuredContent.data.possibleLeads.pairs[0].support.includes('Incineroar'),
   );
   const compact = await client.callTool({ name: 'analyze_team', arguments: { mode: 'synergy', team, regulation: 'm-c' } });
   const evidence = await client.callTool({ name: 'analyze_team', arguments: { mode: 'synergy', team, regulation: 'm-c', detail: 'evidence' } });
   const debug = await client.callTool({ name: 'analyze_team', arguments: { mode: 'synergy', team, regulation: 'm-c', detail: 'debug' } });
   check(
     'response levels: compact is default, evidence expands, debug adds provenance',
-    !('defensiveWeaknesses' in compact.structuredContent) &&
-      'defensiveWeaknesses' in evidence.structuredContent &&
-      !!debug.structuredContent.engine?.version &&
-      !('engine' in evidence.structuredContent) &&
+    !('defensiveWeaknesses' in compact.structuredContent.data) &&
+      'defensiveWeaknesses' in evidence.structuredContent.data &&
+      !!debug.structuredContent.data.engine?.version &&
+      !('engine' in evidence.structuredContent.data) &&
       Buffer.byteLength(JSON.stringify(compact.structuredContent)) < Buffer.byteLength(JSON.stringify(evidence.structuredContent)),
   );
 }
@@ -604,7 +744,7 @@ if (!/- Fake Out/.test(paste)) {
     await httpClient.connect(new StreamableHTTPClientTransport(new URL('http://127.0.0.1:3207/mcp')));
     const httpTools = (await httpClient.listTools()).tools;
     const sprite = await httpClient.callTool({ name: 'lookup', arguments: { mode: 'sprites', species: ['Garchomp'], size: 'icon' } });
-    check('HTTP entrypoint serves the same 8 tools', httpTools.length === 8);
+    check('HTTP entrypoint serves the same 9 tools', httpTools.length === 9);
     check('HTTP entrypoint answers a tool call', sprite.structuredContent.sprites[0].url.endsWith('445.png'));
     await httpClient.close();
   } finally {
@@ -634,11 +774,17 @@ if (!/- Fake Out/.test(paste)) {
   const listed = await parse(await worker.fetch(post({ jsonrpc: '2.0', id: 2, method: 'tools/list' })));
   const run = await parse(await worker.fetch(post({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'lookup', arguments: { mode: 'species', species: 'Garchomp' } } })));
   check(
-    'serverless entrypoint serves the same 8 tools',
-    init.status === 200 && listed.result.tools.length === 8 && JSON.parse(run.result.content[0].text).types.join('/') === 'Dragon/Ground',
+    'serverless entrypoint serves the same 9 tools',
+    init.status === 200 && listed.result.tools.length === 9 && JSON.parse(run.result.content[0].text).types.join('/') === 'Dragon/Ground',
+  );
+  const wsRead = await parse(await worker.fetch(post({ jsonrpc: '2.0', id: 4, method: 'resources/read', params: { uri: 'ui://getcompetitive/workspace' } })));
+  check(
+    'the worker artifact embeds the workspace resource',
+    wsRead.result.contents.some((c) => c.mimeType === 'text/html;profile=mcp-app' && c.text.includes('id="root"') && c.text.includes('getcompetitive')),
   );
 }
 
 console.log(failed === 0 ? '\nALL PASS' : `\n${failed} FAILURES`);
 await client.close();
+rmSync(scratch, { recursive: true, force: true });
 process.exit(failed === 0 ? 0 : 1);

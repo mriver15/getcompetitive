@@ -143,7 +143,6 @@ export function registerDataTools(server: McpServer) {
       outputSchema: {
         name: z.string().describe('Display name of the entry, e.g. "Garchomp" or "Ogerpon-Wellspring".'),
         num: z.number().describe('National Dex number; 0 for entries that have none.'),
-        gen: z.number().describe('Generation this entry was introduced in; 0 for entries outside the numbered generations (e.g. MissingNo.).'),
         types: z
           .array(z.string())
           .describe(`Typing, in order, e.g. ["Dragon", "Ground"]. One of ${TYPE_NAMES}.`),
@@ -197,17 +196,6 @@ export function registerDataTools(server: McpServer) {
           .optional()
           .describe('Free-text condition for evolutions that are not plain level, item, or move evolutions, e.g. "Level up with 999 Coins in the bag".'),
         isMega: z.boolean().optional().describe('true for Mega Evolutions; absent otherwise.'),
-        isPrimal: z.boolean().optional().describe('true for Primal Reversions; absent otherwise.'),
-        canGigantamax: z
-          .string()
-          .optional()
-          .describe('Name of the G-Max move, when this entry is a Gigantamax-capable forme; absent otherwise.'),
-        cannotDynamax: z.boolean().describe('true when the species cannot Dynamax.'),
-        isNonstandard: z
-          .string()
-          .nullable()
-          .describe('"Past", "Future", "Unobtainable", or "CAP" when the entry is not available in the current games; null when it is standard.'),
-        unreleasedHidden: z.boolean().optional().describe('true when the hidden ability has not been released; absent otherwise.'),
         tags: z
           .array(z.string())
           .describe('Dataset tags such as ["Sub-Legendary"] or ["Mythical"]; empty when the entry is untagged.'),
@@ -252,7 +240,6 @@ export function registerDataTools(server: McpServer) {
                     .optional()
                     .describe('The species this form transforms from in battle; absent for normally selectable forms.'),
                   isMega: z.boolean().optional().describe('true for Mega Evolutions; absent otherwise.'),
-                  isPrimal: z.boolean().optional().describe('true for Primal Reversions; absent otherwise.'),
                 })
                 .describe('A form that exists in the dataset, carrying the same fields as `get_pokemon` (minus evolutions and the long tail of dataset metadata).'),
               z
@@ -286,7 +273,6 @@ export function registerDataTools(server: McpServer) {
           isCosmetic: o.isCosmeticForme,
           battleOnly: o.battleOnly,
           isMega: o.isMega,
-          isPrimal: o.isPrimal,
         };
       });
       return ok({
@@ -340,7 +326,6 @@ export function registerDataTools(server: McpServer) {
     },
     wrap(
       async (args: { query: string; kind: 'species' | 'move' | 'item' | 'ability' | 'nature'; limit: number }) => {
-        const gen = 9;
         const dex = getChampionsDex();
         const q = args.query.toLowerCase().trim();
         if (!q) throw new Error('query must be non-empty.');
@@ -377,7 +362,7 @@ export function registerDataTools(server: McpServer) {
     {
       title: 'Get move data',
       description:
-        'Get one move\'s battle data: type, damage class, base power, accuracy, PP, priority, target, flags, secondary effect, Z/Max variants, and effect text. Use `get_learnset` to check which Pokémon learn it and `calculate_damage` to apply it in a matchup, rather than reasoning about damage from these fields. Accepts Showdown move names case- and punctuation-insensitively ("make it rain"); unknown moves return an isError with near matches. Read-only and offline.',
+        'Get one move\'s battle data: type, damage class, base power, accuracy, PP, priority, target, flags, secondary effect, and effect text. Use `get_learnset` to check which Pokémon learn it and `calculate_damage` to apply it in a matchup, rather than reasoning about damage from these fields. Accepts Showdown move names case- and punctuation-insensitively ("make it rain"); unknown moves return an isError with near matches. Read-only and offline.',
       annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {
         move: z.string().describe('Move name, e.g. "Earthquake", "Make It Rain", "Dragon Claw".'),
@@ -385,7 +370,6 @@ export function registerDataTools(server: McpServer) {
       outputSchema: {
         name: z.string().describe('Move name, e.g. "Earthquake".'),
         num: z.number().describe('Move number in the dataset, which is also the sort key `search_dex` returns moves by.'),
-        gen: z.number().describe('Generation the move was introduced in.'),
         type: z.string().describe(`Move type. One of ${TYPE_NAMES}.`),
         category: z.string().describe('Damage class: "Physical", "Special", or "Status".'),
         basePower: z
@@ -409,28 +393,6 @@ export function registerDataTools(server: McpServer) {
           .array(secondaryEffect)
           .optional()
           .describe('List of secondary effects, present for moves that carry more than one (e.g. a different effect per hit); absent for moves with none.'),
-        isZ: z
-          .string()
-          .optional()
-          .describe('Z-Crystal id that turns this move into a Z-Move; absent when the move has no dedicated Z-Move.'),
-        zMove: z
-          .object({
-            basePower: z.number().optional().describe('Base power the Z-Move is fixed to.'),
-            effect: z.string().optional().describe('Effect id applied by the Z-Move, e.g. "clearnegativeboost".'),
-            boost: boostsTable.optional().describe('Stat boosts the Z-Move grants the user before attacking.'),
-          })
-          .optional()
-          .describe('The Z-Move this move becomes when a Z-Crystal is held; absent when it does not become one.'),
-        isMax: z
-          .union([z.string(), z.boolean()])
-          .optional()
-          .describe('Species name when this is a G-Max move, true for generic Max Moves; absent when the move is not a Max Move.'),
-        maxMove: z
-          .object({
-            basePower: z.number().describe('Base power of the Max Move under Dynamax.'),
-          })
-          .optional()
-          .describe('The Max Move this move becomes under Dynamax; absent when it does not become one.'),
         breaksProtect: z
           .boolean()
           .optional()
@@ -451,10 +413,6 @@ export function registerDataTools(server: McpServer) {
           .boolean()
           .optional()
           .describe('true when the dataset marks the move as never missing; absent from every other move.'),
-        isNonstandard: z
-          .string()
-          .nullable()
-          .describe('"Past", "Future", "Unobtainable", or "CAP" when the move is not available in the current games; null when it is standard.'),
       },
     },
     wrap(async (args: { move: string }) => {
@@ -470,7 +428,7 @@ export function registerDataTools(server: McpServer) {
     {
       title: 'Get item data',
       description:
-        'Get one held item\'s data: effect text, category flags (Berry, Choice, Mega Stone, …), Z-move, Natural Gift, Fling, and flat stat boosts. Use it to confirm what an item actually does before recommending it; `get_set` returns the item a curated meta set runs. Accepts item names case-insensitively; unknown items return an isError with near matches. Read-only and offline.',
+        'Get one held item\'s data: effect text, category flags (Berry, Choice, Mega Stone, …), Fling, and flat stat boosts. Use it to confirm what an item actually does before recommending it; `get_set` returns the item a curated meta set runs. Accepts item names case-insensitively; unknown items return an isError with near matches. Read-only and offline.',
       annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {
         item: z.string().describe('Item name, e.g. "Choice Band", "Assault Vest", "Leftovers".'),
@@ -478,7 +436,6 @@ export function registerDataTools(server: McpServer) {
       outputSchema: {
         name: z.string().describe('Item name, e.g. "Choice Band".'),
         num: z.number().describe('Item number in the dataset; 0 for items that have none.'),
-        gen: z.number().describe('Generation the item was introduced in.'),
         shortDesc: z.string().describe('One-line effect summary.'),
         desc: z.string().describe('Full effect description.'),
         isBerry: z.boolean().optional().describe('true when the item is a Berry (held and eaten on a trigger); absent otherwise.'),
@@ -489,17 +446,6 @@ export function registerDataTools(server: McpServer) {
           .record(z.string(), z.string())
           .optional()
           .describe('Mega Stone holders: species name to the Mega forme it unlocks, e.g. {"Garchomp": "Garchomp-Mega"}; absent when the item is not a Mega Stone.'),
-        zMove: z
-          .union([z.string(), z.boolean()])
-          .optional()
-          .describe('For Z-Crystals: the Z-Move it unlocks, or true for crystals whose move depends on the held move; absent when the item is not a Z-Crystal.'),
-        naturalGift: z
-          .object({
-            basePower: z.number().describe('Base power Natural Gift gains from this item.'),
-            type: z.string().describe('Type Natural Gift becomes with this item, e.g. "Fire".'),
-          })
-          .optional()
-          .describe('Natural Gift data, present only for Berries (the items Natural Gift can consume).'),
         fling: z
           .object({
             basePower: z.number().describe('Base power Fling gains from this item.'),
@@ -519,10 +465,6 @@ export function registerDataTools(server: McpServer) {
           .array(z.string())
           .optional()
           .describe('Species that can use the item where it is restricted to them; absent when any species can hold it.'),
-        isNonstandard: z
-          .string()
-          .nullable()
-          .describe('"Past", "Future", "Unobtainable", or "CAP" when the item is not available in the current games; null when it is standard.'),
       },
     },
     wrap(async (args: { item: string }) => {
@@ -538,7 +480,7 @@ export function registerDataTools(server: McpServer) {
     {
       title: 'Get ability data',
       description:
-        'Get one ability\'s effect text, flags, and the generations it exists in. Use it before relying on an ability in damage or speed reasoning; the set inputs of `calculate_damage` and `check_speed` take the ability or item name and apply it themselves. Accepts ability names case-insensitively; unknown abilities return an isError with near matches. Read-only and offline.',
+        'Get one ability\'s effect text and flags. Use it before relying on an ability in damage or speed reasoning; the set inputs of `calculate_damage` and `check_speed` take the ability or item name and apply it themselves. Accepts ability names case-insensitively; unknown abilities return an isError with near matches. Read-only and offline.',
       annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {
         ability: z.string().describe('Ability name, e.g. "Intimidate", "Protosynthesis".'),
@@ -546,14 +488,9 @@ export function registerDataTools(server: McpServer) {
       outputSchema: {
         name: z.string().describe('Ability name, e.g. "Intimidate".'),
         num: z.number().describe('Ability number in the dataset; 0 for abilities that have none.'),
-        gen: z.number().describe('Generation the ability was introduced in; 0 for the "No Ability" placeholder.'),
         shortDesc: z.string().describe('One-line effect summary.'),
         desc: z.string().describe('Full effect description.'),
         flags: abilityFlags,
-        isNonstandard: z
-          .string()
-          .nullable()
-          .describe('"Past", "Future", "Unobtainable", or "CAP" when the ability is not available in the current games; null when it is standard.'),
       },
     },
     wrap(async (args: { ability: string }) => {
@@ -584,7 +521,6 @@ export function registerDataTools(server: McpServer) {
           .string()
           .optional()
           .describe('Stat lowered 10%, as a stat id such as "spa"; absent for the five neutral natures that change nothing.'),
-        gen: z.number().describe('Generation the nature system was introduced in.'),
       },
     },
     wrap(async (args: { nature: string }) => {
@@ -613,7 +549,6 @@ export function registerDataTools(server: McpServer) {
         eventData: z
           .array(
             z.object({
-              generation: z.number().describe('Generation the event ran in.'),
               level: z.number().describe('Level the event Pokémon is distributed at.'),
               moves: z.array(z.string()).describe('Move ids the event Pokémon comes with.'),
               pokeball: z.string().optional().describe('Ball the Pokémon is distributed in, as an id such as "cherishball".'),
@@ -637,8 +572,6 @@ export function registerDataTools(server: McpServer) {
                 .optional()
                 .describe('IVs the event fixes, keyed by stat id; only the stats the event pins down are listed.'),
               perfectIVs: z.number().optional().describe('Number of stats guaranteed to be perfect (31 IVs); absent when the event guarantees none.'),
-              source: z.string().optional().describe('Source game the event belongs to, e.g. "gen8bdsp".'),
-              emeraldEventEgg: z.boolean().optional().describe('true when the event is the Emerald event egg; absent otherwise.'),
               japan: z.boolean().optional().describe('true when the event was Japan-only; absent otherwise.'),
             }),
           )
@@ -647,7 +580,7 @@ export function registerDataTools(server: McpServer) {
         movesBySource: z
           .record(z.string(), z.array(z.string()))
           .describe(
-            'Learned moves grouped by how they are acquired, keyed by "Level-up", "TM", "Egg", "Tutor", "Event", "Raid/Event", "Virtual Console transfer", "Dream World", "Pre-evolution", or "Other"; a move learned more than one way appears under each. Each list is sorted by move name and holds display names, e.g. {"TM": ["Earthquake"], "Level-up": ["Dragon Claw"]}. Empty when the dataset records no moves.',
+            'Learned moves grouped by how they are acquired, keyed by "Level-up", "TM", "Egg", "Tutor", "Event", "Raid/Event", "Transfer", "Pre-evolution", or "Other"; a move learned more than one way appears under each. Each list is sorted by move name and holds display names, e.g. {"TM": ["Earthquake"], "Level-up": ["Dragon Claw"]}. Empty when the dataset records no moves.',
           ),
         totalMoves: z.number().describe('Number of distinct moves the species can learn, counted before grouping by source.'),
       },
@@ -673,11 +606,6 @@ export function registerDataTools(server: McpServer) {
       },
       outputSchema: {
         name: z.string().describe('Type name, e.g. "Steel".'),
-        gen: z.number().describe('Always 0 in the bundled dataset — types are not stamped with the generation they were introduced in.'),
-        isNonstandard: z
-          .string()
-          .nullable()
-          .describe('"Future" when the type does not exist in the dataset (e.g. Dark in generation 1) and "Past" when it no longer exists; null for types that are standard in that generation.'),
         damageTaken: z
           .record(z.string(), z.number())
           .describe(
@@ -716,7 +644,7 @@ export function registerDataTools(server: McpServer) {
     {
       title: 'Resolve type effectiveness',
       description:
-        'Resolve type effectiveness in the mode the arguments imply: attacker + defender returns the single multiplier (the defender may be a type or a species, whose current-generation typing is used); attacker alone returns that type\'s offensive coverage against all 18 types; defender alone returns everything the defender takes, including 4x weaknesses and immunities; neither returns the complete 18x18 matrix. Use `get_type` for a type\'s own defensive entry, and `analyze_team` when the question spans a whole team. Names are case-insensitive; an unknown type or species returns an isError. Read-only and offline.',
+        'Resolve type effectiveness in the mode the arguments imply: attacker + defender returns the single multiplier (the defender may be a type or a species, whose typing is used); attacker alone returns that type\'s offensive coverage against all 18 types; defender alone returns everything the defender takes, including 4x weaknesses and immunities; neither returns the complete 18x18 matrix. Use `get_type` for a type\'s own defensive entry, and `analyze_team` when the question spans a whole team. Names are case-insensitive; an unknown type or species returns an isError. Read-only and offline.',
       annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {
         attacker: z
@@ -726,7 +654,7 @@ export function registerDataTools(server: McpServer) {
         defender: z
           .string()
           .optional()
-          .describe('Defending type or species name; a species contributes its current-generation types.'),
+          .describe('Defending type or species name; a species contributes its types.'),
       },
       outputSchema: {
         attacker: z

@@ -52,7 +52,10 @@ Tool definitions are the agent's only interface to this server, so they are held
 to the [TDQS](https://tdqs.dev) checklist and linted in CI:
 
 - `title` (a human label longer than the tool name) and
-  `annotations: READ_ONLY_ANNOTATIONS` (imported from `src/result.ts`).
+  `annotations: READ_ONLY_ANNOTATIONS` (imported from `src/result.ts`) — every
+  tool is a read over committed data except `record_set`, which declares
+  `WRITE_ANNOTATIONS` and states in its description exactly what it writes and
+  where.
 - `.describe(...)` on **every** top-level parameter — the deterministic score
   signal only counts schema descriptions, and the description text is not a
   substitute for them.
@@ -95,7 +98,10 @@ or disagrees with the official roster.
 The threat list (`src/threats.data.ts`) is generated and usage-derived — never
 hand-edited. `scripts/build-threats.mjs` ranks the legal roster by measured
 usage over tournament teams, resolves each species' most-played set, cross-checks
-the ordering against a second source, and writes the file. When a new set drops:
+the ordering against a second source, and writes the file. Nothing else belongs
+in it: a set the reasoning generated goes to the per-user record via
+`record_set`, not to the usage list, where it would be read as measured and
+would break every consumer that sorts or ranks by usage. When a new set drops:
 
 ```bash
 node scripts/build-threats.mjs m-d    # writes src/threats.data.ts

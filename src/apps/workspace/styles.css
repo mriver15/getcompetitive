@@ -1,0 +1,355 @@
+/*
+ * getcompetitive workspace styles. Colors come from host-provided CSS
+ * custom properties (set by `applyHostStyleVariables`); every value has a
+ * readable fallback so the App renders even without a themed host.
+ */
+:root {
+  color-scheme: light dark;
+  --gc-bg: var(--color-background-primary, #ffffff);
+  --gc-bg-2: var(--color-background-secondary, #f3f4f6);
+  --gc-text: var(--color-text-primary, #111827);
+  --gc-text-2: var(--color-text-secondary, #4b5563);
+  --gc-border: var(--color-border-primary, #e5e7eb);
+  --gc-accent: var(--color-accent, #4f46e5);
+  --gc-ok: #16a34a;
+  --gc-warn: #b45309;
+  --gc-bad: #dc2626;
+  --gc-muted: #6b7280;
+}
+
+[data-theme='dark'] {
+  --gc-bg: var(--color-background-primary, #111827);
+  --gc-bg-2: var(--color-background-secondary, #1f2937);
+  --gc-text: var(--color-text-primary, #f9fafb);
+  --gc-text-2: var(--color-text-secondary, #d1d5db);
+  --gc-border: var(--color-border-primary, #374151);
+  --gc-muted: #9ca3af;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--gc-bg);
+  color: var(--gc-text);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+#root {
+  padding: 16px;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.app-header {
+  border-bottom: 1px solid var(--gc-border);
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+}
+
+.app-header h1 {
+  margin: 0 0 4px;
+  font-size: 20px;
+}
+
+.app-sub {
+  margin: 0;
+  color: var(--gc-text-2);
+  font-size: 12px;
+}
+
+.panel {
+  background: var(--gc-bg);
+  border: 1px solid var(--gc-border);
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 14px;
+}
+
+.panel h2 {
+  margin: 0 0 10px;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.stat {
+  background: var(--gc-bg-2);
+  border: 1px solid var(--gc-border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  min-width: 90px;
+}
+
+.stat-label {
+  font-size: 11px;
+  color: var(--gc-text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.stat-value {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.stat.score-overall {
+  border-color: var(--gc-accent);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  border: 1px solid var(--gc-border);
+  background: var(--gc-bg-2);
+  white-space: nowrap;
+}
+
+.chip.ok {
+  color: var(--gc-ok);
+  border-color: var(--gc-ok);
+}
+
+.chip.warn {
+  color: var(--gc-warn);
+  border-color: var(--gc-warn);
+}
+
+.chip.bad {
+  color: var(--gc-bad);
+  border-color: var(--gc-bad);
+}
+
+.chip.muted {
+  color: var(--gc-muted);
+}
+
+.chip.member {
+  font-weight: 500;
+}
+
+.chip.role {
+  color: var(--gc-accent);
+  border-color: var(--gc-accent);
+}
+
+.chip.type {
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-size: 11px;
+}
+
+.note {
+  color: var(--gc-text-2);
+  font-size: 12px;
+  margin: 8px 0 0;
+}
+
+.muted {
+  color: var(--gc-muted);
+}
+
+.strong {
+  font-weight: 600;
+}
+
+.bad {
+  color: var(--gc-bad);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--gc-border);
+  vertical-align: top;
+}
+
+.table th {
+  color: var(--gc-text-2);
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.list-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 8px;
+  border: 1px solid var(--gc-border);
+  border-radius: 8px;
+}
+
+.list-item .strong,
+.list-item p {
+  margin: 0;
+}
+
+.list-item .note {
+  margin-top: 2px;
+}
+
+.recs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rec {
+  border: 1px solid var(--gc-border);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.rec-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.reasons {
+  margin: 0 0 10px;
+  padding-left: 18px;
+  color: var(--gc-text-2);
+}
+
+.reasons li {
+  margin-bottom: 2px;
+}
+
+.expand-row {
+  margin-top: 10px;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 6px 12px;
+  border: 1px solid var(--gc-border);
+  background: var(--gc-bg-2);
+  color: var(--gc-text);
+}
+
+button.primary {
+  background: var(--gc-accent);
+  border-color: var(--gc-accent);
+  color: #ffffff;
+}
+
+button.expand,
+button.secondary {
+  background: transparent;
+}
+
+button:hover {
+  filter: brightness(0.96);
+}
+
+.banner {
+  background: var(--gc-bg-2);
+  border: 1px solid var(--gc-border);
+  border-left: 4px solid var(--gc-accent);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+}
+
+.paste {
+  width: 100%;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 12px;
+  background: var(--gc-bg-2);
+  color: var(--gc-text);
+  border: 1px solid var(--gc-border);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.status {
+  text-align: center;
+  padding: 48px 16px;
+}
+
+.status h1 {
+  font-size: 18px;
+  margin: 0 0 8px;
+}
+
+.status .note {
+  font-size: 13px;
+}
+
+.status--error h1,
+.status--unsupported h1 {
+  color: var(--gc-bad);
+}
+
+@media (max-width: 640px) {
+  #root {
+    padding: 10px;
+  }
+
+  .table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

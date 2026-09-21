@@ -12,8 +12,10 @@ teams: the official Regulation Sets, the usage-derived meta, and the battle math
 behind them.
 
 Champions is the only game here. The server speaks its terms — doubles, level 50,
-Mega Evolution once per battle, 66 stat points, no Terastallization — and the
-Smogon-tier and archetype surface that used to sit alongside it is gone.
+Mega Evolution once per battle, 66 stat points — and carries nothing from the
+games that came before it: the Smogon-tier and archetype surface that used to sit
+alongside it is gone, and no entry reports the generation it came from or whether
+it is still obtainable in some other game.
 
 ## What it provides
 
@@ -21,8 +23,9 @@ Smogon-tier and archetype surface that used to sit alongside it is gone.
   `serverInfo` and model-facing `instructions`, and every tool description names
   the game — so a client knows before its first tool call that this server is
   exclusively Pokémon Champions
-- **8 compound tools**: `lookup`, `calculate`, `analyze_team`, `optimize_team`, `prepare_matchup`, `analyze_battle`, `analyze_meta`, `team_io` — intent-level entrypoints that dispatch on a `mode`, so the model picks an intent and the server does the orchestration
-- **Six workflow prompts** — `/team-doctor`, `/matchup-prep`, `/build-around`, `/tournament-prep`, `/learn-my-team`, `/meta-report` — server-provided templates that chain the eight tools, so compound workflows stay discoverable without widening the surface
+- **9 compound tools**: `lookup`, `calculate`, `analyze_team`, `optimize_team`, `prepare_matchup`, `analyze_battle`, `analyze_meta`, `team_io`, and `record_set` — intent-level entrypoints that dispatch on a `mode`, so the model picks an intent and the server does the orchestration. Eight are pure reads over the measured meta; `record_set` is the one writer, filing a set the reasoning generated into a local, per-user record
+- **Six workflow prompts** — `/team-doctor`, `/matchup-prep`, `/build-around`, `/tournament-prep`, `/learn-my-team`, `/meta-report` — server-provided templates that chain the tools, so compound workflows stay discoverable without widening the surface
+- **An MCP App workspace** — one portable, sandboxed UI (`ui://getcompetitive/workspace`) with three Views over the same deterministic engine: **Team Doctor** (synergy/diagnose), **Team Builder** (slot optimization) and **Matchup Board** (pre-game dossier). It renders inside any Apps-capable host; the compact text output is unchanged for hosts without Apps support
 - **Structured, agent-first definitions** — every tool declares MCP annotations and an output schema, returns `structuredContent` alongside JSON text, and documents all of its parameters; the deterministic half of the [TDQS](https://tdqs.dev) checklist is linted in CI
 - Full **Pokémon Showdown** dataset — species, alternate forms, stats, moves, items, abilities, natures, learnsets, types
 - **Battle math** from Smogon's calculator — stat calculation and full damage calculation (weather, terrain, boosts, items)
@@ -46,6 +49,7 @@ Eight compound tools; each dispatches on a `mode` field where the name alone is 
 | `analyze_battle` | Post-game and scouting | replay, infer |
 | `analyze_meta` | The meta, measured | threats, compare, set |
 | `team_io` | Team import/export and validation | parse, format, legality, regulation, regulations |
+| `record_set` | File a generated set into the local per-user record | — |
 
 ## Install
 
@@ -116,8 +120,10 @@ PORT=8080 node dist/http-server.js
 ```
 
 Connect a client with the URL `http://<host>:<port>/mcp`. TLS, auth and rate
-limiting are the deployer's concern: the server itself remains a pure offline
-read. Browsing `http://<host>:<port>/` serves the **evidence app** — the model
+limiting are the deployer's concern: the server itself makes no outbound
+request and needs no credential — every tool is an offline read, except
+`record_set`, which appends to a local file (see [Recorded sets](#recorded-sets)).
+Browsing `http://<host>:<port>/` serves the **evidence app** — the model
 converses, the page displays the proof (bring-four, threat matrix, key rolls).
 
 ### Hosted MCP
@@ -132,6 +138,33 @@ npx wrangler deploy            # with wrangler.toml
 
 The worker is stateless per request, so it scales without session storage;
 TLS and rate limiting come from the platform.
+
+## MCP App
+
+The server also ships a portable **MCP App** — one self-contained HTML resource
+registered at `ui://getcompetitive/workspace` and linked from `analyze_team`,
+`optimize_team` and `prepare_matchup`. In an Apps-capable host (the official
+MCP Apps example host, or a Bud-style client) calling one of those tools
+renders a sandboxed iframe with the matching View:
+
+- **Team Doctor** — the six sets, a labelled heuristic score, stacked
+  weaknesses, coverage, speed placement and top fixes; expand a panel to pull
+  the per-type breakdown via `detail: "evidence"`
+- **Team Builder** — the constraint set and scored recommendations; add a
+  proposed member (legality-checked), then re-optimize or read the finished
+  team, and export the paste through `team_io`
+- **Matchup Board** — usage-derived opponent sets (labelled separately from
+  base-stat estimates), the bring-four, speed races, calculated damage rolls
+  (labelled separately from heuristic leads), and the assumptions behind each
+
+The three App tools wrap their analytics in a small versioned envelope in
+`structuredContent` (`{ schemaVersion, view, tool, mode, regulation, data }`);
+the model-facing text is unchanged. Every View number comes from that envelope,
+never from the model's text, and a View that sees an unknown `schemaVersion`
+renders an unsupported-schema state instead of guessing. The bundle is built by
+`scripts/build-app.mjs` (esbuild, no external CDN, fonts or scripts) and
+embedded in the compiled server JS, so the stdio, HTTP and Worker entrypoints
+serve byte-identical markup.
 
 ## Workflow prompts
 
@@ -166,6 +199,8 @@ npm test   # builds and drives every tool over real MCP stdio, plus the HTTP ent
 - `team_io` `{ "mode": "parse", "text": "Garchomp @ Choice Scarf | Rough Skin | Jolly | 252 Atk / 252 Spe | Earthquake / Dragon Claw" }`
 - `analyze_team` `{ "mode": "diagnose", "team": [ { "species": "Garchomp", "nature": "Jolly", "evs": { "atk": 252, "spe": 252 } } ], "goal": "improve against the current meta" }`
 - `prepare_matchup` `{ "team": [ { "species": "Garchomp" } ], "opponent": ["Sneasler", "Salamence-Mega", "Gholdengo"] }`
+- `analyze_meta` `{ "mode": "set", "species": "Annihilape", "includeRecorded": true }` → the usage-derived set when one exists, plus every set you filed for it under `recorded`
+- `record_set` `{ "set": { "species": "Annihilape", "item": "Leftovers", "ability": "Defiant", "nature": "Adamant", "championsPoints": { "hp": 32, "atk": 32, "spd": 2 }, "moves": ["Rage Fist", "Drain Punch", "Protect", "Bulk Up"] }, "basis": "proposed", "tool": "diagnose_team", "regulation": "m-c" }`
 
 ## Data freshness
 
@@ -182,6 +217,25 @@ whole roster, and every threat species against official data and refreshes the
 committed facts table, which `test/champions.mjs` pins as golden regression
 tests. All generated data files are committed, so the tools stay offline at
 runtime. See [CONTRIBUTING](CONTRIBUTING.md).
+
+## Recorded sets
+
+The usage-derived meta has exactly one home: `src/threats.data.ts`, regenerated
+from tournament data by `scripts/build-threats.mjs`. A set the reasoning
+generated — solved from battle observations, or proposed for a team — has no
+sample and no rank, so it is filed separately by `record_set` into a local,
+per-user record: `$GETCOMPETITIVE_STORE`, or `~/.getcompetitive/sets.jsonl` by
+default. The file is append-only JSON Lines, created on first write and keyed
+by a hash of the set itself, so re-recording an identical set is a no-op while a
+changed spread, item or move set becomes a new record — the file is the
+timeline of what was generated.
+
+Records are per user and never leave the machine. `analyze_meta` with
+`mode: "set"` returns them only when asked with `includeRecorded`, under
+`recorded`, separately from the usage-derived fields: no usage share, no rank,
+no sample, only how each one was arrived at (`inferred` or `proposed`). No other
+tool writes, and on a runtime with no writable filesystem (the hosted worker)
+`record_set` returns an isError naming the path it could not write.
 
 ## Contributing
 

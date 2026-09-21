@@ -17,6 +17,13 @@ import {
   CHAMPIONS_POINTS_TOTAL,
   CHAMPIONS_POINTS_MAX,
   damageResult,
+  speciesToObj,
+  moveToObj,
+  itemToObj,
+  abilityToObj,
+  natureToObj,
+  typeToObj,
+  learnsetToObj,
 } from '../dist/dex.js';
 
 let failed = 0;
@@ -151,6 +158,53 @@ const dex = getChampionsDex();
     { species: 'Gholdengo', item: 'Life Orb', nature: 'Modest', evs: { spa: 252, spe: 252 }, moves: ['Make It Rain', 'Shadow Ball', 'Nasty Plot'] },
     'UNFAVORABLE',
   );
+}
+
+// --- Champions-only payloads --------------------------------------------------
+// `dex.ts`'s shapers are the one place dataset fields become tool payload, and
+// what they emit has to be about this game alone. An entry that reports the
+// generation it came from, or a mechanic Champions does not have, tells the
+// model about a game nobody here is playing — and it cannot tell which parts
+// apply. Scanned over the whole dataset, so a field that leaks back in fails
+// this suite rather than reaching a client.
+{
+  // `source` is deliberately absent: the learnset event field that was removed
+  // carried a game id in its value ("gen8bdsp"), which the text check below
+  // catches, while a `source` key is a legitimate provenance name elsewhere.
+  const PAST_GAME_FIELDS = new Set([
+    'gen', 'generation', 'isNonstandard', 'cannotDynamax', 'canGigantamax', 'isPrimal',
+    'unreleasedHidden', 'zMove', 'maxMove', 'isZ', 'isMax', 'naturalGift', 'teraType',
+    'emeraldEventEgg',
+  ]);
+  const PAST_GAME_TEXT = /(\bgeneration\b|\bgen\s?\d\b|national dex)/i;
+
+  const badFields = new Set();
+  const badText = new Set();
+  const walk = (value, bucket) => {
+    if (Array.isArray(value)) return value.forEach((v) => walk(v, bucket));
+    if (value && typeof value === 'object') {
+      for (const [k, v] of Object.entries(value)) {
+        if (PAST_GAME_FIELDS.has(k)) badFields.add(`${bucket}.${k}`);
+        walk(v, bucket);
+      }
+      return;
+    }
+    if (typeof value === 'string' && PAST_GAME_TEXT.test(value)) badText.add(`${bucket}: ${value.slice(0, 60)}`);
+  };
+
+  for (const s of dex.species.all()) walk(speciesToObj(s), 'species');
+  for (const m of dex.moves.all()) walk(moveToObj(m), 'move');
+  for (const i of dex.items.all()) walk(itemToObj(i), 'item');
+  for (const a of dex.abilities.all()) walk(abilityToObj(a), 'ability');
+  for (const n of dex.natures.all()) walk(natureToObj(n), 'nature');
+  for (const t of dex.types.all()) walk(typeToObj(t), 'type');
+  for (const s of dex.species.all()) {
+    const ls = await dex.learnsets.getByID(s.id);
+    if (ls.exists && ls.eventData?.length) walk(learnsetToObj(ls), 'learnset');
+  }
+
+  check(`no lookup field names a past game${badFields.size ? ` — ${[...badFields].slice(0, 3).join(', ')}` : ''}`, badFields.size === 0);
+  check(`no lookup text carries a generation marker${badText.size ? ` — ${[...badText].slice(0, 2).join(' | ')}` : ''}`, badText.size === 0);
 }
 
 console.log(failed === 0 ? '\nALL PASS' : `\n${failed} FAILURES`);

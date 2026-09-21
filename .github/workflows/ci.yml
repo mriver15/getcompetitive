@@ -52,6 +52,11 @@ jobs:
       # so in both its own and its sibling's description, which is the remedy
       # the rule prescribes. The count itself is deliberate: one tool per
       # question across five domains, not a surface to be trimmed to a target.
+      # Reviewed again on 2026-09-21 for the ninth entrypoint: `record_set`
+      # (cost 6) against `analyze_battle` (cost 0) is the new candidate, and the
+      # pair is disjoint by construction — one appends a set to the local
+      # per-user record, the other reads a battle log — which the description
+      # states outright ("the only tool on the server that writes anything").
       - run: npx -y mcp-tdqs@0.2.0 lint --command "node dist/index.js" --format json --output tdqs.json
       - run: |
           test "$(jq '[.tools[].findings[] | select(.severity == "warning" and .rule != "shadow-candidate")] | length' tdqs.json)" = 0

@@ -35,13 +35,26 @@ export function wrap<A>(handler: (args: A) => CallToolResult | Promise<CallToolR
 }
 
 /**
- * Every tool on this server is the same kind of operation: a pure read over the
+ * Every tool but `record_set` is the same kind of operation: a pure read over the
  * bundled Showdown dataset and the curated regulation data. No network, no auth,
- * no state, and the same arguments always produce the same result — so the
- * annotations are identical across the surface and live here once.
+ * and the same arguments always produce the same result — so the annotations are
+ * identical across that surface and live here once.
  */
 export const READ_ONLY_ANNOTATIONS = {
   readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: false,
+} as const;
+
+/**
+ * `record_set` is the one tool that writes: it appends to the per-user recorded-set
+ * file (`GETCOMPETITIVE_STORE`, or `~/.getcompetitive/sets.jsonl`). Nothing is
+ * overwritten and re-recording an identical set is a no-op, so it is idempotent
+ * and non-destructive — but it is not a read, and saying so is the point.
+ */
+export const WRITE_ANNOTATIONS = {
+  readOnlyHint: false,
   destructiveHint: false,
   idempotentHint: true,
   openWorldHint: false,

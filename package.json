@@ -1,6 +1,6 @@
 {
   "name": "getcompetitive",
-  "version": "6.3.1",
+  "version": "8.0.0",
   "description": "MCP server for Pokémon Champions competitive play: official Regulation Sets, usage-derived meta, and battle math for team building and decision making",
   "type": "module",
   "bin": {
@@ -10,7 +10,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "node scripts/build-app.mjs && tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "smoke": "node test/smoke.mjs",
     "test": "npm run build && node test/smoke.mjs && node test/champions.mjs",
@@ -36,6 +36,7 @@
   },
   "homepage": "https://github.com/mriver15/getcompetitive",
   "dependencies": {
+    "@modelcontextprotocol/ext-apps": "1.7.5",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "@pkmn/dex": "^0.10.11",
     "@smogon/calc": "^0.11.0",
@@ -43,6 +44,7 @@
   },
   "devDependencies": {
     "@types/node": "^26.5.1",
+    "esbuild": "0.25.0",
     "typescript": "^7.0.2"
   }
 }

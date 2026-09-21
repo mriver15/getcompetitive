@@ -12,7 +12,9 @@
  * single-request by design, so reusing one would collide on message ids), no
  * session state is kept, and the whole thing can sit behind a load balancer.
  * Deployment concerns — TLS, auth, rate limits, hosting — are deliberately left
- * to whoever runs it: the server itself stays a pure offline read.
+ * to whoever runs it: the server itself makes no outbound request. Every tool is
+ * an offline read except `record_set`, which appends to the local per-user
+ * recorded-set file and fails cleanly where there is no filesystem to write.
  */
 import http from 'node:http';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
