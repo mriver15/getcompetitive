@@ -46,7 +46,7 @@ Then, in order:
 4. If you propose a changed team, run team_io with mode "format" on it so the user can copy the paste straight into the game.
 5. For each member whose set you actually changed, run record_set with basis "proposed" and tool "diagnose_team", so the changed set is on file and analyze_meta with mode "set" returns it later with includeRecorded. Say which sets you recorded; a record is your own working note, not measured usage.
 
-Every claim must come from the tools\u2019 output. You explain; getcompetitive proves.`,
+Every claim must come from the tools\u2019 output. You explain; getcompetitive proves. When the host opens the interactive board for these calls, stop after the call and let the user drive it; the board runs its own drilldowns and hands follow-up questions back to you.`,
           },
         },
       ],
@@ -83,7 +83,7 @@ Then, in order:
 3. Deliver the dossier in plain language: their likely sets ordered by usage, the speed races that matter, the key damage rolls (quote the description lines), the recommended bring-four and why, leads to open with and watch for, win/loss conditions, and which of the user\u2019s members to preserve.
 4. End with the matchupConfidence read and what it can and cannot see.
 
-Every number comes from prepare_matchup\u2019s output — you explain; getcompetitive proves.`,
+Every number comes from prepare_matchup\u2019s output — you explain; getcompetitive proves. When the host opens the interactive board for these calls, stop after the call and let the user drive it; the board runs its own drilldowns and hands follow-up questions back to you.`,
           },
         },
       ],
@@ -120,7 +120,7 @@ Workflow:
 4. Assemble six members, run team_io with mode "legality" against the regulation, then team_io with mode "format" the finished squad so the user can paste it.
 5. For every member whose set the meta has no data for — a typing-only pick or a spread you derived — run record_set with basis "proposed" and tool "build-around", so the set you settled on can be read back later with analyze_meta with mode "set" and includeRecorded. Say which ones you recorded.
 
-Explain each pick with its evidence (coverage, speed, or usage). You design; getcompetitive proves the picks.`,
+Explain each pick with its evidence (coverage, speed, or usage). You design; getcompetitive proves the picks. When the host opens the interactive board for these calls, stop after the call and let the user drive it; the board runs its own drilldowns and hands follow-up questions back to you.`,
           },
         },
       ],

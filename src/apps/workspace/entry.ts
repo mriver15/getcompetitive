@@ -7,6 +7,7 @@
  */
 import { App, applyDocumentTheme, applyHostStyleVariables, type McpUiStyles, type McpUiTheme } from '@modelcontextprotocol/ext-apps/app-with-deps';
 import { parseEnvelope, type AppEnvelope, type ToolInput } from './protocol.js';
+import { SCHEMA_VERSION, viewFor } from '../envelope.js';
 import { renderShell, renderStatus, renderView, type BuilderState, type ViewContext } from './views.js';
 
 const app = new App({ name: 'getcompetitive', version: '1.0.0' }, undefined, { autoResize: true });
@@ -76,17 +77,47 @@ function applyResult(res: { isError?: boolean; structuredContent?: unknown; cont
     renderError(res.content?.find((c) => c.type === 'text')?.text ?? 'The tool reported an error.');
     return;
   }
-  if (!res.structuredContent) {
-    renderUnsupported('The host delivered no structured content for this tool; the compact text is all there is.');
-    return;
+  if (res.structuredContent) {
+    const env = parseEnvelope(res.structuredContent);
+    if (!env) {
+      renderUnsupported('The result envelope is missing or uses an unsupported schemaVersion.');
+      return;
+    }
+    envelope = env;
+  } else {
+    // Some hosts deliver the model-facing text but drop `structuredContent`.
+    // Rebuild the envelope from the compact JSON text (which every host
+    // delivers) plus the tool name the host reports in its context, so the view
+    // still renders and stays interactive.
+    const text = res.content?.find((c) => c.type === 'text')?.text;
+    if (!text) {
+      renderUnsupported('The host delivered neither structured content nor text for this tool.');
+      return;
+    }
+    let data: Record<string, unknown>;
+    try {
+      data = JSON.parse(text) as Record<string, unknown>;
+    } catch {
+      renderUnsupported('The tool text was not a JSON object, so the view cannot be built.');
+      return;
+    }
+    const tool = app.getHostContext()?.toolInfo?.tool?.name;
+    const mode = typeof input.mode === 'string' ? input.mode : undefined;
+    const view = tool ? viewFor(tool, mode) : undefined;
+    if (!tool || !view) {
+      renderUnsupported('The host delivered no structured content and no tool context, so the view cannot be chosen.');
+      return;
+    }
+    envelope = {
+      schemaVersion: SCHEMA_VERSION,
+      view,
+      tool,
+      ...(mode ? { mode } : {}),
+      ...(typeof input.regulation === 'string' ? { regulation: input.regulation } : {}),
+      data,
+    };
   }
-  const env = parseEnvelope(res.structuredContent);
-  if (!env) {
-    renderUnsupported('The result envelope is missing or uses an unsupported schemaVersion.');
-    return;
-  }
-  envelope = env;
-  if (env.tool !== 'optimize_team') builder = undefined;
+  if (envelope.tool !== 'optimize_team') builder = undefined;
   phase = 'ready';
   renderReady();
 }

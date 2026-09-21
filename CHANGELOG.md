@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [8.0.3] - 2026-09-21
+
+### Changed
+
+- **The App hands off to the user, and degrades gracefully when a host drops
+  structured content.** The initialize `instructions` and the three App-linked
+  workflow prompts (`/team-doctor`, `/matchup-prep`, `/build-around`) now tell
+  the model to end its turn after an App tool call and let the user explore the
+  board instead of summarizing and moving on. The View also rebuilds its
+  envelope from the compact JSON text plus the host's reported tool context when
+  a host delivers no `structuredContent`, so it renders and stays interactive on
+  hosts that have not implemented complete structured result delivery.
+
 ## [8.0.2] - 2026-09-21
 
 ### Fixed
