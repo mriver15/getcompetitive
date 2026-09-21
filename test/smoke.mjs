@@ -239,6 +239,30 @@ for (const gone of ['list_tiers', 'list_speed_tiers', 'list_archetypes', 'get_ar
   }
 }
 
+// Compound tools publish a real input schema — the mode enum plus the underlying
+// fields — not the empty object the SDK serializes a `z.union` to. An Apps host
+// needs the fields to render a form, so an empty schema is a bug.
+{
+  const check = (label, ok) => {
+    console.log(`=== ${label} => ${ok} ===`);
+    if (!ok) failed++;
+  };
+  const compound = ['lookup', 'calculate', 'analyze_team', 'analyze_battle', 'analyze_meta', 'team_io'];
+  const toolsByName = Object.fromEntries(listed.tools.map((t) => [t.name, t]));
+  check(
+    'compound tools publish mode enum plus their fields',
+    compound.every((n) => {
+      const s = toolsByName[n]?.inputSchema;
+      return (
+        s &&
+        Array.isArray(s.properties?.mode?.enum) &&
+        s.properties.mode.enum.length >= 2 &&
+        Object.keys(s.properties ?? {}).length > 2
+      );
+    }),
+  );
+}
+
 // The MCP App surface: one bundled HTML resource, registered once, linked from
 // the three App tools, and served byte-identical over every transport — never a
 // runtime filesystem path. Non-App tools carry no `_meta.ui` at all.

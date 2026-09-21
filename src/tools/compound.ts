@@ -201,7 +201,34 @@ export function registerCompoundTools(server: McpServer) {
         ...(getObjectShape(defs[modes[mode]].inputSchema) as ZodRawShapeCompat),
       }),
     ) as unknown as [z.ZodTypeAny, ...z.ZodTypeAny[]];
-    const inputSchema = z.union(variants);
+    // A discriminated union validates correctly, but the SDK serializes it to an
+    // empty object schema (`normalizeObjectSchema` only accepts object schemas and
+    // raw shapes), leaving Apps hosts with no fields to render. So the published
+    // schema is a flat shape — the mode enum plus every field each mode accepts,
+    // all optional — and the per-mode variant below enforces the real contract
+    // inside the handler.
+    const mergedShape: Record<string, z.ZodTypeAny> = {
+      mode: z.enum(modeNames as [string, ...string[]]).describe(`Which operation to run: ${modeNames.map((m) => `"${m}"`).join(', ')}.`),
+      detail: detailArg,
+    };
+    // A field name shared by several modes (e.g. `species` is a string in
+    // `lookup`/`species` and an array in `lookup`/`sprites`) gets the union of
+    // every schema it takes, so the loose published shape never rejects a valid
+    // call and serializes the real per-mode types.
+    const fieldVariants: Record<string, z.ZodTypeAny[]> = {};
+    for (const mode of modeNames) {
+      const modeShape = getObjectShape(defs[modes[mode]].inputSchema) as Record<string, z.ZodTypeAny>;
+      for (const [key, field] of Object.entries(modeShape)) {
+        (fieldVariants[key] ??= []).push(field);
+      }
+    }
+    for (const [key, fields] of Object.entries(fieldVariants)) {
+      const unique = [...new Set(fields)];
+      const unioned = unique.length === 1 ? unique[0] : z.union(unique as [z.ZodTypeAny, z.ZodTypeAny, ...z.ZodTypeAny[]]);
+      mergedShape[key] = unioned.optional();
+    }
+    const inputSchema = mergedShape as ZodRawShapeCompat;
+    const variantByMode: Record<string, z.ZodTypeAny> = Object.fromEntries(modeNames.map((mode, i) => [mode, variants[i]]));
     server.registerTool(
       name,
       {
@@ -216,12 +243,19 @@ export function registerCompoundTools(server: McpServer) {
         ...(viewFor(name, modeNames[0]) ? { _meta: { ui: { resourceUri: WORKSPACE_RESOURCE_URI } } } : {}),
       },
       async (args) => {
-        // registerTool cannot infer argument types from a full-schema inputSchema,
-        // so the discriminated union's contract is restated here.
         type CompoundArgs = { mode: string; detail?: string } & Record<string, unknown>;
         const parsed = args as CompoundArgs;
+        const variant = variantByMode[parsed.mode];
+        if (!variant) {
+          throw new Error(`Unknown mode "${parsed.mode}" for ${name}. Available: ${modeNames.join(', ')}.`);
+        }
+        const inputCheck = variant.safeParse(parsed);
+        if (!inputCheck.success) {
+          const issues = inputCheck.error.issues.map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`).join('; ');
+          throw new Error(`Invalid arguments for ${name} mode "${parsed.mode}": ${issues}`);
+        }
         const def = defs[modes[parsed.mode]];
-        const result = await def.handler(parsed);
+        const result = await def.handler(inputCheck.data as Record<string, unknown>);
         // The captured mode schema validates the result exactly as the dedicated
         // tool's output schema did. It is applied here rather than as a compound
         // outputSchema: the SDK's compat layer routes zod-v4 schemas through its
