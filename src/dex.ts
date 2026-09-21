@@ -332,13 +332,18 @@ export function championsPointsToEvs(points: Record<string, number>): Record<str
   for (const s of STATS) {
     const p = points[s] ?? 0;
     if (!Number.isInteger(p) || p < 0 || p > CHAMPIONS_POINTS_MAX) {
-      throw new Error(`Champions points for "${s}" must be a whole number 0-${CHAMPIONS_POINTS_MAX}.`);
+      throw new Error(`Champions points for "${s}" must be a whole number 0-${CHAMPIONS_POINTS_MAX}; you sent ${p}.`);
     }
     total += p;
     if (p > 0) evs[s] = Math.min(252, p * EV_PER_CHAMPIONS_POINT);
   }
   if (total > CHAMPIONS_POINTS_TOTAL) {
-    throw new Error(`Champions spread totals ${total} points; the cap is ${CHAMPIONS_POINTS_TOTAL}.`);
+    const breakdown = STATS.filter((s) => (points[s] ?? 0) > 0)
+      .map((s) => `${points[s]} ${s}`)
+      .join(' + ');
+    throw new Error(
+      `Champions spread totals ${total} CP; budget is ${CHAMPIONS_POINTS_TOTAL}. You sent ${breakdown || 'nothing'} = ${total}; drop to ${CHAMPIONS_POINTS_TOTAL} or less, e.g. 32/32/1 = 65.`,
+    );
   }
 
   let sum = STATS.reduce((acc, s) => acc + (evs[s] ?? 0), 0);
@@ -392,7 +397,7 @@ export function resolveEvs(
   evs: Record<string, number> | undefined,
   championsPoints: Record<string, number> | undefined,
 ): Record<string, number> {
-  if (evs && championsPoints) throw new Error('Give either evs or championsPoints, not both.');
+  if (evs && championsPoints) throw new Error('You sent both evs and championsPoints; keep exactly one. evs is the 0-252 scale, championsPoints the Champions 0-32 scale (8 EVs = 1 CP, 66 total).');
   return championsPoints ? championsPointsToEvs(championsPoints) : cleanMap(evs, STATS, 'EV');
 }
 

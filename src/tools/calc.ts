@@ -138,7 +138,7 @@ export function registerCalcTools(server: McpServer) {
     {
       title: 'Calculate final stats',
       description:
-        'Compute one Pok\u00e9mon\u2019s final six stats at a level from its nature, IVs, and EVs, returning the stat table plus base stats and BST. Stats only, never a battle: use `calculate_damage` or `calculate_matchups` for damage rolls, `check_speed` to place the Speed stat against a regulation roster, and `optimize_evs` when the spread must be derived from a goal. EVs are 0-252 per stat with a 510 total cap, IVs 0-31, level defaults to 50 and nature to Serious. Read-only and offline; unknown species or nature names return an isError.',
+        'Compute one Pok\u00e9mon\u2019s final six stats at a level from its nature, IVs, and EVs, returning the stat table plus base stats and BST. Stats only, never a battle: use `calculate_damage` or `calculate_matchups` for damage rolls, `check_speed` to place the Speed stat against a regulation roster, and `optimize_evs` when the spread must be derived from a goal. EVs are 0-252 per stat with a 510 total cap; championsPoints is the Champions CP scale (8 EVs = 1 CP, each stat 0-32, 66 total, e.g. 252 HP / 252 Atk / 4 SpD = 32 / 32 / 1 CP). IVs 0-31, level defaults to 50 and nature to Serious. Read-only and offline; unknown species or nature names return an isError.',
       annotations: READ_ONLY_ANNOTATIONS,
       inputSchema: {
         species: z.string().describe('Species or form name, e.g. "Garchomp", "Ogerpon-Wellspring".'),
@@ -501,7 +501,7 @@ export function registerCalcTools(server: McpServer) {
         nature: z.string().optional().describe('Nature name, e.g. "Jolly", "Timid"; default Serious (neutral Speed).'),
         evs: evMap.describe('EVs keyed by stat id; only `spe` (0-252) changes the result, e.g. { spe: 252 }.'),
         championsPoints: championsPointsMap.describe(
-          'The same Speed investment in Pok\u00e9mon Champions stat points, e.g. { spe: 32 } for a maxed Speed stat; give this or `evs`, not both.',
+          'The same Speed investment in Pok\u00e9mon Champions stat points, e.g. { spe: 32 } for a maxed Speed stat; give this or `evs`, never both; 8 EVs = 1 CP.',
         ),
         ivs: ivMap.describe('IVs keyed by stat id; only `spe` (0-31) changes the result, and it defaults to 31.'),
         boosts: boostMap.describe('Stat stages; only `spe` (-6..+6) is applied, e.g. { spe: 1 } for a +1 Speed stage.'),

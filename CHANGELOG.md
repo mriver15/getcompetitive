@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [8.0.4] - 2026-09-21
+
+### Changed
+
+- **`calculate` teaches the spread rules instead of bouncing the model off
+  them.** The CP economy (8 EVs = 1 CP, each stat 0-32, 66 CP total) and a
+  worked example (252 HP / 252 Atk / 4 SpD = 32 / 32 / 1 CP) now appear in the
+  `calculate` description, the `calculate_stats` and `check_speed` descriptions,
+  and the shared `evs`/`championsPoints` field descriptions. Validation errors
+  are now self-correcting: the "both scales" error names each scale and the
+  conversion, the range error repeats the value sent ("you sent 40"), and the
+  cap error shows the breakdown and a concrete fix ("you sent 32 hp + 32 atk +
+  32 spa = 96; drop to 66 or less, e.g. 32/32/1 = 65"). Also fixed the mangled
+  "Pok00e9mon" lead-in in the compound tool descriptions. The principle: a
+  validator that rejects without teaching is a token multiplier — ranges, caps,
+  conversions and exclusivity belong in the description (and ideally the schema)
+  before the validator enforces them.
+
 ## [8.0.3] - 2026-09-21
 
 ### Changed
