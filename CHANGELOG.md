@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.3.1] - 2026-09-20
+
+### Fixed
+
+- **Kingambit was reported illegal in Regulation Set M-C.** The Bulbapedia
+  page the rosters were scraped from omits Kingambit from its M-C eligible
+  list (it appears in no revision of the page), so `check_legality` and
+  `team_io` rejected a species with 29% measured M-C usage. The roster is
+  restored from the official Pokémon Champions event pages (231 species;
+  M-C adds 23 over M-B, not 29 as the notes claimed).
+
+### Changed
+
+- **Regulation rosters are now cumulative.** The M series builds each set on
+  the previous one, and the data reflects that: `regulations.data.ts` stores
+  M-A in full (`base`) plus each later set's `additions`, and the full
+  per-set lists are derived at load. Eligible species come straight from the
+  official event pages — the Bulbapedia dependency that caused the Kingambit
+  omission is gone — and `extract-regs.mjs` now fails without writing on any
+  drop or source disagreement. Ingesting M-D is three steps: add the set to
+  the script and to `METADATA`, run the script, run `npm test`. The golden
+  tests pin the official roster sizes, Kingambit's M-C membership, and the
+  no-drops invariant.
+
 ## [6.3.0] - 2026-09-20
 
 ### Added
