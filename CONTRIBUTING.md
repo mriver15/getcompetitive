@@ -23,7 +23,7 @@ npm test          # builds + drives every tool over real MCP stdio
 | `src/regulations.ts` | Regulation metadata (dates, rules, notes) — curated |
 | `src/threats.data.ts` | Generated usage-derived threat list — **do not edit by hand** |
 | `src/threats.ts` | Types and accessors over the generated threat list |
-| `scripts/extract-regs.mjs` | Regenerates `src/regulations.data.ts` from Bulbapedia |
+| `scripts/extract-regs.mjs` | Regenerates `src/regulations.data.ts` from official event pages + Bulbapedia megas |
 | `scripts/build-threats.mjs` | Regenerates `src/threats.data.ts` from live usage data |
 | `test/smoke.mjs` | End-to-end smoke test (spawns the real server over stdio) |
 
@@ -70,14 +70,25 @@ the CI `tdqs` job enforces exactly that.
 
 ## Updating regulation data
 
-Regulation Sets change every ~2–3 months. To refresh:
+Regulation Sets change every ~2–3 months and are cumulative: each new set
+contains the previous set's rosters, and `src/regulations.data.ts` stores M-A
+in full plus each later set's additions (the full lists are derived at load).
+To ingest a new set, e.g. M-D:
+
+1. Add the set to `SETS` in `scripts/extract-regs.mjs` — the `official` URL is
+   the Pokémon Champions event page linked from the M-D announcement on
+   https://news.pokemon-home.com/en/ ("Eligible Pokémon").
+2. Add the `'m-d'` entry to `METADATA` in `src/regulations.ts` (name,
+   `start`/`end` dates, `notes`).
+3. Run:
 
 ```bash
-node scripts/extract-regs.mjs     # regenerates the eligible/mega rosters
+node scripts/extract-regs.mjs     # verifies against official pages, writes rosters
+npm test                          # golden pins: sizes, no-drops, Kingambit regression
 ```
 
-then edit the per-set metadata (name, `start`/`end` dates, `notes`) in
-`src/regulations.ts`.
+The extractor fails without writing if the new set drops a carried-over species
+or disagrees with the official roster.
 
 ## Updating the threat list / standard sets
 

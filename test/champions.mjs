@@ -50,6 +50,33 @@ const dex = getChampionsDex();
   check(`every regulation roster species resolves${missingRoster.length ? ` — MISSING: ${missingRoster.join(', ')}` : ''}`, missingRoster.length === 0);
   const missingMega = REGULATION_SETS.flatMap((s) => s.megaEvolution.species).filter((n) => !dex.species.get(n).exists);
   check(`every mega-eligible species resolves${missingMega.length ? ` — MISSING: ${missingMega.join(', ')}` : ''}`, missingMega.length === 0);
+
+  // Official roster sizes, counted from the Pokémon Champions event web-view
+  // pages (2026-09-20): 186 / 208 / 231. A drift means the scrape silently
+  // dropped or invented species — the M-C list once lost Kingambit that way.
+  const officialSizes = { 'm-a': 186, 'm-b': 208, 'm-c': 231 };
+  const badSizes = REGULATION_SETS.filter((s) => s.eligibleSpecies.length !== officialSizes[s.id]);
+  check(
+    `regulation roster sizes match official (${Object.entries(officialSizes).map(([k, v]) => `${k}=${v}`).join(', ')})${badSizes.length ? ` — WRONG: ${badSizes.map((s) => `${s.id}=${s.eligibleSpecies.length}`).join(', ')}` : ''}`,
+    badSizes.length === 0,
+  );
+  const mC = REGULATION_SETS.find((s) => s.id === 'm-c');
+  check('M-C roster contains Kingambit (upstream omission regression)', !!mC && mC.eligibleSpecies.includes('Kingambit'));
+
+  // The M series is cumulative: every set contains the previous set's eligible
+  // and Mega rosters. The derived lists must never drop a carry-over.
+  const byStart = REGULATION_SETS.slice().sort((a, b) => a.start.localeCompare(b.start));
+  const drops = [];
+  for (let i = 1; i < byStart.length; i++) {
+    const prev = byStart[i - 1];
+    const cur = byStart[i];
+    const lost = [
+      ...prev.eligibleSpecies.filter((s) => !cur.eligibleSpecies.includes(s)),
+      ...prev.megaEvolution.species.filter((s) => !cur.megaEvolution.species.includes(s)),
+    ];
+    if (lost.length) drops.push(`${cur.id} misses ${lost.join(', ')}`);
+  }
+  check(`every set contains the previous set's roster${drops.length ? ` — WRONG: ${drops.join('; ')}` : ''}`, drops.length === 0);
 }
 
 // --- Stat-point math contract ---

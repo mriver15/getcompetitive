@@ -190,8 +190,9 @@ conventions, and [CODE_OF_CONDUCT](CODE_OF_CONDUCT.md) for community standards.
 
 ## License
 
-[MIT](LICENSE). Data is sourced from the Pokémon Showdown ecosystem and
-Bulbapedia; usage statistics come from [Limitless TCG](https://play.limitlesstcg.com/)
+[MIT](LICENSE). Data is sourced from the official Pokémon Champions event
+pages, the Pokémon Showdown ecosystem, and Bulbapedia; usage statistics come
+from [Limitless TCG](https://play.limitlesstcg.com/)
 tournaments and the in-game ranked ladder as aggregated by
 [MunchStats](https://www.munchstats.com/), cross-checked against
 [Pikalytics](https://www.pikalytics.com/). Pokémon is © Nintendo / Game Freak.
